@@ -150,6 +150,7 @@
         = \sum_{i=1}^m \sum_{j=1}^n [D_\ve{x} A]_{ij}[D_\ve{y} B^T]_{ji}
         = \sum_{i=1}^m [D_\ve{x} A D_\ve{y} B^T]_{ii} \\
         &= \tr(D_\ve{x} A D_\ve{y} B^T).
+        \tag*{$\Box$}
         \end{align*}
     </p>
 
@@ -168,6 +169,7 @@
     </p>
     <p>
         The matrix $A$ is <i>positive definite</i> if $\ve{x}^T A \ve{x} > 0$ for all $\ve{x} \neq \ve{0}$.
+        (In other words, if $\ve{x}^T A \ve{x} = 0$, then $\ve{x} = \ve{0}$.)
         Similar to the properties of positive semidefinite matrices, the following properties are equivalent:
         <ul>
             <li>$A$ is positive definite.</li>
@@ -176,7 +178,88 @@
         </ul>
     </p>
 
-    <p><b>Lemma 1.</b> If $A$ is positive semi-definite, then $A = \sum_{i=1}^n $ </p>    
+    <p>
+        <b>Lemma 1.</b> If $A \in \Real^{n\times n}$ is a positive semidefinite matrix of rank $k$, then $A$ may be written in the form
+        $A = \ve{v}_1 \ve{v}_1^T + \ve{v}_2 \ve{v}_2^T + \dotsb + \ve{v}_k \ve{v}_k^T$ where $\ve{u}_i \in \Real^n$.
+    </p>
+    <p>
+        <i>Proof.</i> Using the eigendecomposition of $A$, we have that $A = U \Lambda U^T$.  Let $\ve{u}_i$ denote
+        the $i$th column of $U$, and let $\lambda_i$ denote the $i$th eigenvalue of $A$.
+        Then, $U \Lambda U^T = \sum_{i=1}^k \lambda_i \ve{u}_i \ve{u}_i^T$.
+        Since $\lambda_i > 0$, we have that we may write:
+        $\sum_{i=1}^k \lambda_i \ve{u}_i \ve{u}_i^T = \sum_{i=1}^k (\sqrt{\lambda_i}  \ve{u}_i) (\sqrt{\lambda_i} \ve{u}_i)^T$.
+        Set $\ve{v}_i = \sqrt{\lambda_i} \ve{u}^T$, and we are done. $\Box$
+    </p>
+
+    <p>
+        <b>Lemma 2.</b>  For any vector $\ve{v}, \ve{w} \in \Real^n$, we have that
+        $\ve{v} \ve{v}^T \circ \ve{w}\ve{w}^T = (\ve{v} \circ \ve{w})(\ve{v} \circ \ve{w})^T$
+    </p>
+    <p>
+        <i>Proof.</i>
+        \begin{align*}
+        [\ve{v} \ve{v}^T \circ \ve{w}\ve{w}^T]_{ij}
+        &= [\ve{v} \ve{v}^T]_{ij} [\ve{w}\ve{w}^T]_{ij}
+        = [\ve{v}]_i [\ve{v}]_{j} [\ve{w}]_{i} [\ve{w}]_j
+        = ([\ve{v}]_i [\ve{w}]_{i}) ([\ve{v}]_{j}  [\ve{w}]_j)
+        = [\ve{v} \circ \ve{w}]_i [\ve{v} \circ \ve{w}]_j
+        = [(\ve{v} \circ \ve{w})(\ve{v} \circ \ve{w})^T]_{ij}.
+        \end{align*}
+        As a result, $\ve{v} \ve{v}^T \circ \ve{w}\ve{w}^T = (\ve{v} \circ \ve{w})(\ve{v} \circ \ve{w})^T$. $\Box$
+    </p>
+
+    <p><b>Theorem 2 (Schur product theorem).</b> If $A$ and $B$ are positive semidefinite matrices, then
+    so is $A \circ B$.  Moreover, if both $A$ and $B$ are positive definite, then so is $A \circ B$.</p>
+
+    <p>
+        <i>Proof.</i> We show the theorem is true for the case of positive semidefinite matrices first.
+        Using Lemma 1, we may write $A = \sum_{i=1}^k \ve{v}_i \ve{v}_i^T$ and $B = \sum_{j=1}^l \ve{w}_j \ve{w}_j^T$
+        So,
+        \begin{align*}
+        A \circ B
+        &= \bigg( \sum_{i=1}^k \ve{v}_i \ve{v}_i^T \bigg) \circ \bigg( \sum_{j=1}^l \ve{w}_j \ve{w}_j^T \bigg)
+        = \sum_{i=1}^k \sum_{j=1}^l \ve{v}_i \ve{v}_i^T \circ \ve{w}_j \ve{w}_j^T.
+        \end{align*}
+        Using Lemma 2, the above expression becomes:
+        \begin{align*}
+        A \circ B
+        &= \sum_{i=1}^k \sum_{j=1}^l (\ve{v}_i \circ \ve{w}_j) (\ve{v}_i \circ \ve{w}_j)^T.
+        \end{align*}
+        Since $(\ve{v}_i \circ \ve{w}_j) (\ve{v}_i \circ \ve{w}_j)^T$ is positive semidefinite, we have that we can
+        write $A \circ B$ as a sum of positive semidefinite matrices.  Thus, $A \circ B$ is positive semidefinite.
+    </p>
+    <p>
+        Next, we show the result for positive definite matrices.  If $A$ and $B$ are both positive definite, then
+        $k = l = n$.  Moreover, the set $\{ \ve{v}_i \}$ and $\{ \ve{w}_j \}$ are orthonormal bases of $\Real^n$.
+        Let $\ve{x}$ be a vector such that $\ve{x}^T (A \circ B) \ve{x} = 0$.  We have that:
+        \begin{align*}
+        0
+        = \ve{x}^T (A \circ B) \ve{x}
+        = \ve{x}^T \bigg( \sum_{i=1}^n \sum_{j=1}^n (\ve{v}_i \circ \ve{w}_j) (\ve{v}_i \circ \ve{w}_j)^T \bigg) \ve{x}
+        = \sum_{i=1}^n \sum_{j=1}^n \ve{x}^T (\ve{v}_i \circ \ve{w}_j) (\ve{v}_i \circ \ve{w}_j)^T \ve{x}
+        = \sum_{i=1}^n \sum_{j=1}^n ((\ve{v}_i \circ \ve{w}_j)^T \ve{x})^2.
+        \end{align*}
+        This means that $(\ve{v}_i \circ \ve{w}_j)^T \ve{x} = 0$ for all combinations of $i$ and $j$.  Now,
+        \begin{align*}
+        0
+        = (\ve{v}_i \circ \ve{w}_j)^T \ve{x}
+        = \sum_{k=1}^n [\ve{v}_i \circ \ve{w}_j]_k [\ve{x}]_k
+        = \sum_{k=1}^n [\ve{v}_i]_k [\ve{w}_j]_k [\ve{x}]_k
+        = \sum_{k=1}^n [\ve{v}_i]_k [\ve{x}]_k [\ve{w}_j]_k
+        = \sum_{k=1}^n [\ve{v}_i \circ \ve{x}]_k [\ve{w}_j]_k
+        = (\ve{v}_i \circ \ve{x})^T \ve{w}_j
+        \end{align*}
+        This means that, $\ve{v}_i \circ \ve{x}$ is perpendicular to every vector in the set $\{ \ve{w}_j \}$,
+        which is a basis of $\Real^n$.  This means that $\ve{v}_i \circ \ve{x} = \ve{0}$ for all $i$.  Since
+        $\{ \ve{v}_i \}$ is a basis of $\Real^n$, it must be the case that there exists a permutation $\pi$ such
+        that $[\ve{v}_i]_{\pi(i)} \neq 0$ for all $i$.  (Otherwise, the determinant of matrices constructed
+        from the column vectors $\ve{v}_i$ would be zero.)  This implies that, for all $i$,
+        $[\ve{v}_i \circ \ve{x}]_{\pi(i)} = 0$, and so $[\ve{x}]_{\pi(i)} = 0$.
+        As a result, $\ve{x} = \ve{0}$.  We can now conclude that $A \circ B$ is positive definite. $\Box$
+    </p>
+
+    <div class="page-header"></div>
+    <p>Last modified: 2017/05/08</p>
 </div>
 
 <script
