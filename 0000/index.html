@@ -29,20 +29,43 @@
 </head>
 <body>
 <div class="container">
+    \(
+    \newcommand{\ve}[1]{\mathbf{#1}}
+    \newcommand{\diag}{\mathrm{diag}}
+    \newcommand{\Real}{\mathbb{R}}
+    \newcommand{\tr}{\mathbb{tr}}
+    \)
+
     <div class="page-header"><h1>The Hadarmard Product and Its Properties</h1></div>
 
-    <p>I encountered the Hadamard product when I took <a href="http://www.cs.cornell.edu/courses/cs4780/2017sp/index.html">CS 4780: Machine Learning</a> in the Spring of 2017.  There was a problem in a homework assignment that relies on the Schur product theorem (to be proven later in this blog post).  The theorem is non-trivial that I could not prove it after spending some time, so I raised the white flag and searched the Internet for some hints.  It turned out this was a significant theorem that warrented some study after all.</p>
+    <p>
+        I encountered the Hadamard product when I took
+        <a href="http://www.cs.cornell.edu/courses/cs4780/2017sp/index.html">CS 4780: Machine Learning</a>
+        in the Spring of 2017.  There was a problem in a homework assignment that relies on
+        the Schur product theorem (to be proven later in this blog post).
+        The theorem is non-trivial that I could not prove it after spending some time,
+        so I raised the white flag and searched the Internet for some hints.
+        It turned out this was a significant theorem that warrented some study after all.
+    </p>
 
-    <p>What you see in this blog post is mostly taken from a note by <a href="http://buzzard.ups.edu/courses/2007spring/projects/million-paper.pdf">Elizabeth Million</a>.</p>
+    <p>
+        What you see in this blog post is mostly taken from a note by
+        <a href="http://buzzard.ups.edu/courses/2007spring/projects/million-paper.pdf">Elizabeth Million</a>,
+        the Wikipedia article on the
+        <a href="https://en.wikipedia.org/wiki/Hadamard_product_(matrices)">Hadamard product</a>,
+        and the one on the <a href="https://en.wikipedia.org/wiki/Schur_product_theorem">Schur product theorem</a>.
+    </p>
 
     <h2>Definition and Basic Properties</h2>
 
     <p>
-        Given two matrices $A$ and $B$ of the same size, the <b>Hadamard product</b> of $A$ and $B$, denoted $A \circ B$ is given by:
+        Given two matrices $A$ and $B$ of the same size, the <b>Hadamard product</b> of $A$ and $B$,
+        denoted $A \circ B$ is given by:
         \begin{align*}
         [A \circ B]_{ij} = [A]_{ij} [B]_{ij}.
         \end{align*}
-        Namely, we multiply the matrices element-wise.  The following properties of the Hadamard product are trivial to show:
+        Namely, we multiply the matrices element-wise.
+        The following properties of the Hadamard product are trivial to show:
     </p>
     <ol>
         <li>
@@ -52,7 +75,9 @@
             The identity under the Hadamard product is the matrix whose entries are all $1$s.
         </li>
         <li>
-            Let $A$ be a matrice none of whose entries is zero.  Then, the inverse of $A$ (denoted by $\hat{A}$) under the Hadamard product exists and is given by $[\hat{A}]_{ij} = ([A]_{ij})^{-1}$.
+            Let $A$ be a matrice none of whose entries is zero.  Then, the inverse of
+            $A$ (denoted by $\hat{A}$) under the Hadamard product exists and is given by
+            $[\hat{A}]_{ij} = ([A]_{ij})^{-1}$.
         </li>
         <li>
             The Hadamard product is linear.  That is:
@@ -63,35 +88,86 @@
         </li>        
     </ol>
 
-    <p>The note by Million mentioned casually that "$A \circ B = AB$ if and only if $A$ and $B$ are diagonal."  This is patently false because:
-    \begin{align*}
-    \begin{bmatrix}
-    0 & 1 \\
-    0 & 0
-    \end{bmatrix}
-    \circ
-    \begin{bmatrix}
-    1 & 0 \\
-    0 & 0
-    \end{bmatrix}
-    =
-    \begin{bmatrix}
-    0 & 0 \\
-    0 & 0
-    \end{bmatrix}
-    =
-    \begin{bmatrix}
-    0 & 1 \\
-    0 & 0
-    \end{bmatrix}    
-    \begin{bmatrix}
-    1 & 0 \\
-    0 & 0
-    \end{bmatrix}
-    \end{align*}
+    <p>
+        The note by Million mentioned casually that
+        "$A \circ B = AB$ if and only if $A$ and $B$ are diagonal."  This is patently false because:
+        \begin{align*}
+        \begin{bmatrix}
+        0 & 1 \\
+        0 & 0
+        \end{bmatrix}
+        \circ
+        \begin{bmatrix}
+        1 & 0 \\
+        0 & 0
+        \end{bmatrix}
+        =
+        \begin{bmatrix}
+        0 & 0 \\
+        0 & 0
+        \end{bmatrix}
+        =
+        \begin{bmatrix}
+        0 & 1 \\
+        0 & 0
+        \end{bmatrix}
+        \begin{bmatrix}
+        1 & 0 \\
+        0 & 0
+        \end{bmatrix}.
+        \end{align*}
+    </p>
+
+    <h2>The Trace Formula</h2>
+
+    <p>
+        For any vector $\ve{x} = (x_1, x_2, \dotsc, x_n)^T$, let $D_\ve{x}$ denotes the diagonal matrix whose
+        diagonal entries are the entries of $\ve{x}$.  Namely,
+        \begin{align*}
+        D_\ve{x} = \begin{bmatrix}
+        x_1 & & & \\
+        & x_2 & & \\
+        & & \ddots & \\
+        & & & x_n
+        \end{bmatrix}.
+        \end{align*}
+    </p>
+
+    <p>
+        <b>Theorem 1 (Trace Formula).</b> For any $A, B \in \Real^{m\times n}$ and $\ve{x} \in \Real^m$ and
+        $\ve{y} \in \Real^n$, we have that
+        $$\ve{x}^T (A \circ B) \ve{y} = \tr(D_\ve{x} A D_\ve{y} B^T).$$
+    </p>
+
+    <p>
+        <i>Proof.</i>
+        \begin{align*}
+        \ve{x}^T (A \circ B) \ve{y}
+        &= \sum_{i=1}^m \sum_{j=1}^n [\ve{x}]_i [A \circ B]_{ij} [\ve{y}]_j
+        = \sum_{i=1}^m \sum_{j=1}^n [\ve{x}]_i [A]_{ij}[B]_{ij} [\ve{y}]_j
+        = \sum_{i=1}^m \sum_{j=1}^n [D_\ve{x} A]_{ij}[B D_\ve{y} ]_{ij} \\
+        &= \sum_{i=1}^m \sum_{j=1}^n [D_\ve{x} A]_{ij}[(B D_\ve{y})^T]_{ji}
+        = \sum_{i=1}^m \sum_{j=1}^n [D_\ve{x} A]_{ij}[D_\ve{y} B^T]_{ji}
+        = \sum_{i=1}^m [D_\ve{x} A D_\ve{y} B^T]_{ii} \\
+        &= \tr(D_\ve{x} A D_\ve{y} B^T).
+        \end{align*}
     </p>
 
     <h2>Schur Product Theorem</h2>
+
+    <p>
+        The Schur product theorem connects the Hadamard product of matrices with positive semi-definiteness.
+        Recall that a real symmetric matrix $A \in \Real^{n\times n}$ is
+        <i>positive semidefinite</i> if $\ve{x}^T A \ve{x} \geq 0$ for all $\ve{x} \in \Real^n$.
+        Also, recall that the following properties are equivalent:
+        <ul>
+            <li>$A$ is positive semidifinite.</li>
+            <li>All the eigenvalues of $A$ are non-negative.</li>
+            <li>There exists $B$ such that $A = B^T B$.</li>
+        </ul>
+    </p>
+    <p>It is <i>positive definite</i> if $\ve{x}^T A \ve{x} > 0$ for all $\ve{x} \neq \ve{0}$.
+    </p>
 
     <p><b>Lemma 1.</b> If $A$ is positive semi-definite, then $A = \sum_{i=1}^n $ </p>    
 </div>
