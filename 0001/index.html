@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Undergrad Supervised Machine Learning</title>
+
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/theme.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- MathJax -->
+    <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+    });
+    </script>    
+    <script type="text/javascript" async
+            src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+    </script>
+</head>
+<body>
+<div class="container">
+    \(
+    \newcommand{\ve}[1]{\mathbf{#1}}
+    \newcommand{\diag}{\mathrm{diag}}
+    \newcommand{\Real}{\mathbb{R}}
+    \newcommand{\tr}{\mathbb{tr}}
+    \DeclareMathOperator*{\argmin}{arg\,min}
+    \DeclareMathOperator*{\argmax}{arg\,max}
+    \)
+
+    <div align="center"><h1>Undergrad Supervised Machine Learning</h1></div>
+
+    <p>
+        This note was written as I prepare for the final examination of
+        <a href="http://www.cs.cornell.edu/courses/cs4780/2017sp">CS 4780: Machine Learning for Intelligent Systesm.</a>.
+    </p>
+
+    <div class="page-header"><h2>Naive Bayes</h2></div>
+
+    <ul>
+        <li>
+            Discriminative vs Generative
+            <ul>
+                <li>
+                    Machine learning models that estimates probability can be classified into two types:
+                    generative models and discriminative models.
+                </li>
+                <li>
+                    A <b>discriminative</b> model estimates $P(y|\ve{x})$ directly.
+                </li>
+                <li>
+                    A <b>generative</b> model estimates $P(\ve{x}|y)$ and $P(y)$ and then uses these
+                    to estimate $P(y|\ve{x})$.
+                </li>
+            </ul>
+        </li>
+        <li>
+            Generative classifier
+            <ul>
+                <li>Assume that we are working on a classification problem.  That is $y \in \{1, 2, \dotsc, C\}$.</li>
+                <li>A generative classifer has to estimate $P(y)$ and $P(\ve{x} | y)$.</li>
+                <li>
+                    For a given class $c$ and a given vector value $\ve{a}$,
+                    we may estimate the above probabilities from the training data as follows:
+                    \begin{align*}
+                        P(y = c) &\approx \frac{1}{n} \sum_{i=1}^n \delta(y_i = c) \\
+                        P(\ve{x}
+                        = \ve{a}| y = c) = \frac{\Pr(\ve{x} = \ve{a}| y = c)}{\Pr(y = c)}
+                        &\approx \frac{\sum_{i=1}^n \delta(\ve{x}_i = \ve{a}) \delta(y_i=c) }{\sum_{i=1}^n \delta(y_i = c)}.
+                    \end{align*}
+                </li>
+                <li>
+                    The problem with the above scheme is that, in any practical dataset, there exists only a
+                    few training example that has the input vector $\ve{x}$ exactly being equal to $\ve{a}$.
+                    Typically, such an example might not exist at all.
+                </li>
+            </ul>
+        </li>
+        <li>
+            Naive Bayes classifiers solve the problem of data scarcity by making the <b>Naive Bayes assumption</b>:
+            \begin{align*}
+                \Pr(\ve{x}|y)
+                &= \prod_{\alpha=1}^d \Pr([\ve{x}]_\alpha|y)
+            \end{align*}
+            <ul>
+                <li>
+                    Important: <b>Conditional</b> probabilies of different features are independent.
+                    It says nothing about the marginal probabilities of different features are indepenent.
+                </li>
+                <li>
+                    The assumption is often false, but it works in practice.
+                    <ul>
+                        <li>Example: spam filtering.</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li>
+            To predict with a Naive Bayes classifer, we compute:
+            \begin{align*}
+            \argmax_y \Pr(y|\ve{x})
+            &= \argmax_y \Pr(y) \Pr(\ve{x}|y) \\
+            &= \argmax_y \Pr(y) \prod_{\alpha=1}^d \Pr([\ve{x}]_\alpha| y) \\
+            &= \argmax_y \bigg(\log(\Pr(y)) +  \sum_{\alpha=1}^d \log(\Pr([\ve{x}]_\alpha| y))\bigg).
+            \end{align*}
+        </li>
+        <li>
+            Categorical features
+            <ul>
+                <li>$[\ve{x}]_\alpha \in \{1, 2, \dotsc, K_\alpha \}$</li>
+                <li>Parameters:
+                    \begin{align*}
+                    \pi_c &= \Pr(y = c) \\
+                    [\theta_{jc}]_\alpha &= \Pr([\ve{x}]_\alpha = j | y = c)
+                    \end{align*}
+                </li>
+                <li>
+                    Parameter estimation:
+                    \begin{align*}
+                    \hat \pi_c &= \frac{\sum_{i=1}^n \delta(y_i = c)}{n} \\
+                    [\hat\theta_{jc}]_\alpha
+                    &= \frac{l + \sum_{i=1}^n \delta([\ve{x}]_\alpha = j)\delta(y_i = c) }{l K_\alpha + \sum_{i=1}^n \delta(y_i = c)}
+                    \end{align*}
+                    where $l$ is the smoothing parameter.
+                    <ul>
+                        <li>$l = 0$ is MLE.</li>
+                        <li>$l = 1$ is <i>Laplacian smoothing</i>.</li>
+                    </ul>
+                </li>
+                <li>
+                    Inference:
+                    \begin{align*}
+                    y = \argmax_c \Pr(y=c|x) = \argmax_c \hat\pi_c \prod_{\alpha=1}^d [\hat\theta_{ji}]_\alpha
+                    \end{align*}
+                </li>
+            </ul>
+        </li>
+        <li>
+            Multinomial features
+            <ul>
+                <li>The object is a multiset of $d$ possible members.</li>
+                <li>
+                    The input vector $\ve{x}$ is the vector of the number of occurences of each possible member.
+                </li>
+                <li>
+                    Mathematically,
+                    $[\ve{x}]_\alpha \in \{ 0, 1, 2, \dotsc, m \}$ and $m = \sum_{\alpha=1}^d [\ve{x}]_\alpha$.
+                </li>
+                <li>Model
+                    <ul>
+                        <li>
+                            Let $\theta_{\alpha c}$ be the probability of selecting $\alpha$ given that the class
+                            $y = c$.
+                        </li>
+                        <li>
+                            Likelihood:
+                            \begin{align*}
+                            \Pr(\ve{x}|m,y=c)
+                            = \frac{m!}{[\ve{x}]_1! [\ve{x}]_2! \dotsb [\ve{x}]_d!} \prod_{\alpha = 1}^d (\theta_{\alpha c})^{[\ve{x}]_\alpha}
+                            \end{align*}
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    Parameter estimation:
+                    \begin{align*}
+                    \hat\theta_{\alpha c}
+                    = \frac{\mbox{# of $\alpha$ in examples of class $c$}}{\mbox{# elements in examples of class $c$}}
+                    = \frac{l + \sum_{i=1}^n \delta(y_i = c) [\ve{x}_i]_\alpha}{ld + \sum_{i=1}^n \delta(y_i = c) (\sum_{\beta = 1}^d [\ve{x}_i]_\beta )}
+                    \end{align*}
+                </li>
+                <li>
+                    Inference:
+                    \begin{align*}
+                    y = \argmax_c \hat\pi_c \prod_{\alpha=1}^d \theta_{\alpha c}^{[\ve{x}]_\alpha}
+                    \end{align*}
+                    where $\hat\pi_c$ is the same as in the categorical feature case.
+                </li>
+            </ul>
+        </li>
+        <li>
+            Continuous feature (aka Gaussian naive Bayes)
+            <ul>
+                <li>$[\ve{x}]_\alpha \in \Real$</li>
+                <li>Likelihood = Gaussian distribution
+                    \begin{align*}
+                    \Pr([\ve{x}]_\alpha | y=c)
+                    = \mathcal{N}(\mu_{\alpha c}, \sigma_{\alpha c}^2)
+                    = \frac{1}{\sqrt{2\pi}\sigma_{\alpha c}} \exp\bigg( -\frac{([\ve{x}]_\alpha - \mu_{\alpha c})^2}{2 \sigma_{\alpha c}^2} \bigg)
+                    \end{align*}
+                </li>
+                <li>
+                    Parameter estimation:
+                    \begin{align*}
+                    n_c &\gets \sum_{i=1}^n \delta(y_i = c) \\
+                    \mu_{\alpha c} &\gets \frac{1}{n_c} \sum_{i=1}^n \delta(y_i = c) [\ve{x}_i]_\alpha \\
+                    \sigma_{\alpha c}^2 &\gets \frac{1}{n_c} \sum_{i=1}^n \delta(y_i = c) ([\ve{x}_i]_\alpha - \mu_{\alpha c})^2 \\
+                    \end{align*}
+                </li>
+            </ul>
+        </li>
+        <li>
+            Naive Bayes classifer is linear.
+            <ul>
+                <li>Naive Bayes with multinomial feature has linear decision boundary.</li>
+                <li>Gaussian Naive Bayes also has linear decision boundary.</li>
+                <li>
+                    Can show that $$\Pr(y | \ve{x}) = \frac{1}{1 - e^{-y(\ve{w}^T \ve{x} + b)}} $$
+                    for some $\ve{w} \in \Real^d$ and $b \in \Real$.
+                </li>
+                <li>
+                    However, if data is linear separable, naive Bayes might screw up because it makes
+                    the assumption that the distribution is Gaussian, which might not be the case.
+                    <ul>
+                        <li>This means that Gaussian naive Bayes has high bias.</li>
+                        <li>So, it is robust to outliers.</li>
+                    </ul>
+                </li>
+                <li>
+                    Logistic regression is the discriminative counterpart of Gaussian naive Bayes.
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <div class="page-header"><h2>Support Vector Machine</h2></div>
+
+    <ul>
+        <li>
+            The <b>support vector machine (SVM)</b> is a linear classifier that maximizes the <i>margin</i>.
+            <ul>
+                <li>As usual, the model consists of two parameters: $\ve{w} \in \Real^d$ and $b \in \Real$.</li>
+                <li>Given a test point $\ve{x}$, we compute $\ve{w}^T \ve{x} + b$.
+                    <ul>
+                        <li>If $\ve{w}^T \ve{x} + b > 0$, the class is $+1$.</li>
+                        <li>If $\ve{w}^T \ve{x} + b > 0$, the class is $-1$.</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li>
+            Because we precisely formalize the margin, we need to formalize the notion of a distance between
+            a point and a hyperplane.
+            <ul>
+                <li>A hyperplane $\mathcal{H}$ is the set $\{ \ve{x} : \ve{w}^T \ve{x} + b = 0 \}$.</li>
+                <li>We would like to find the distance between a point $\ve{x}$ and $\mathcal{H}$.</li>
+                <li>Let $\ve{x}^P$ be the projection of $\ve{x}$ onto $\mathcal{H}$.</li>
+                <li>
+                    Let $\ve{d} = \ve{x} - \ve{x}^P$.  Since $\ve{d}$ is parallel to $\ve{w}$, we have that
+                    $\ve{d} = \alpha \ve{w}$.
+                </li>
+                <li>
+                    Since $\ve{x}^P \in \mathcal{H}$, we have that $\ve{w}^T \ve{x}^P + b = 0$. So,
+                    \begin{align*}
+                        \ve{w}^T \ve{x}^P + b &= 0 \\
+                        \ve{w}^T (\ve{x} - \ve{d}) + b &= 0 \\
+                        \ve{w}^T (\ve{x} - \alpha \ve{w}) + b &= 0 \\
+                        \ve{w}^T \ve{x} - \alpha \ve{w}^T \ve{w} + b &= 0 \\
+                        \ve{w}^T \ve{x} + b &= \alpha \ve{w}^T\ve{w} \\
+                        \alpha &= \frac{\ve{w}^T \ve{x} + b }{\ve{w}^T\ve{w}} = \frac{\ve{w}^T \ve{x} + b }{ \| \ve{w} \|_2^2 }.
+                    \end{align*}
+                </li>
+                <li>
+                    The distance is given by $$\| \ve{d} \|_2 = \| \alpha \ve{w} \|_2
+                    = |\alpha| \| w \|_2 = \frac{|\ve{w}^T \ve{x} + b|}{\| w \|_2^2} \| w \|_2
+                    = \frac{\| \ve{w}^T \ve{x} + b \|}{ \| \ve{w} \|_2 }.$$
+                </li>
+            </ul>
+        </li>
+        <li>
+            The margin of the hyperplane defined by $\ve{w}$ and $b$, denoted by $\gamma(\ve{w},b)$
+            is the distance from the hyperplane to the nearest training example:
+            $$ \gamma(\ve{w}, b) = \min_{i} \frac{|\ve{w}^T \ve{x}_i + b |}{\| \ve{w} \|_2}.$$
+        </li>
+        <li>
+            One important property of the margin is that it is scale invariant:
+            $$\gamma(\beta \ve{w}, \beta b) = \gamma(\ve{w}, b)$$
+            for all real number $\beta$.
+        </li>
+        <li>
+            To find the hyperplane with the maximum margin, we solve the following optimization problem:
+            \begin{align*}
+                \max_{\ve{w}, b} \gamma(\ve{w}, b)
+                \quad\mbox{subjected to}\quad
+                \forall i,\ y_i(\ve{w}^T \ve{x}_i + b) \geq 0
+            \end{align*}
+            This is the same as:
+            \begin{align*}
+            \max_{\ve{w}, b} \min_{i} \frac{|\ve{w}^T \ve{x}_i + b |}{\| \ve{w} \|_2}
+            \quad\mbox{subjected to}\quad
+            \forall i,\ y_i(\ve{w}^T \ve{x}_i + b) \geq 0
+            \end{align*}
+            Since the margin is scale invariant, we may choose $\ve{w}$ and $b$ such that
+            $\min_i \| \ve{w}^T \ve{x} + b | = 1$.  So, the problem becomes:
+            \begin{align*}
+            \max_{\ve{w}, b} \frac{1}{\| \ve{w} \|_2}
+            \quad\mbox{subjected to}\quad
+            \begin{cases}
+            \forall i,\ y_i(\ve{w}^T \ve{x}_i + b) \geq 0 \\
+            \min_i \| \ve{w}^T \ve{x} + b | = 1
+            \end{cases}
+            \end{align*}
+            This is in turn equivalent to:
+            \begin{align*}
+            \min_{\ve{w}, b} \ve{w}^T \ve{w}
+            \quad\mbox{subjected to}\quad
+            \forall i,\ y_i(\ve{w}^T \ve{x}_i + b) \geq 1
+            \end{align*}
+        </li>
+        <li>
+            The above problem is a quadratic programming problem.
+            <ul>
+                <li>The objective is quadratic.</li>
+                <li>The constraint is linear.</li>
+                <li>Has a solution if a separating hyperplane exists.</li>
+                <li>Can be solved efficiently with any QCQP (quadratically constrainted quadratic program) solver.</li>
+            </ul>
+        </li>
+        <li>
+            In cases where the separating hyperplane does not exist, we might want to relax the constraint by
+            introducing slack variables $\xi_i \geq 0$ that measures how much the hyperplane misses being on the right side.
+            Then, we minimize also minimizes the sum of this slack variable together with $\ve{w}^T \ve{w}$:
+            \begin{align*}
+            \min_{\ve{w}, b} \ve{w}^T \ve{w} + C \sum_i \xi_i
+            \quad\mbox{subjected to}\quad
+            \begin{cases}
+            \forall i,\ y_i(\ve{w}^T \ve{x}_i + b) \geq 1 - \xi_i \\
+            \forall i,\ \xi_i \geq 0
+            \end{cases}
+            \end{align*}
+            The constant $C \geq 0$ controls how much we allows for misclassification.
+            <ul>
+                <li>If $C$ is low, we allows for much misclassification.  The constraint is very soft.</li>
+                <li>If $C$ is high, we penalize misclassification heavily.  The constraint is very hard.</li>
+            </ul>
+        </li>
+        <li>
+            At the optimal solution of the above optimization problem, there are two cases:
+            <ul>
+                <li>
+                    If $y_i(\ve{w}^T \ve{x}_i + b) \geq 1$, the slack variable would be $\xi_i$ would be $0$.
+                </li>
+                <li>
+                    If $y_i(\ve{w}^T \ve{x}_i + b) < 1$, the slack variable would be set so that
+                    $y_i(\ve{w}^T \ve{x}_i + b) = 1 - \xi_i$.
+                </li>
+            </ul>
+            In other words, $\xi_i = \max(1 - y_i(\ve{w}^T \ve{x}_i + b), 0).$
+        </li>
+        <li>The function $\ell(h(\ve{x}), y) = \max(1 - h(x), 0)$ is called the <b>hinge loss</b>.</li>
+        <li>
+            With the hinge loss, the soft SVM problem can be written as an unconstrained optimization as follows:
+            \begin{align*}
+            \min_{\ve{w}, b} \ve{w}^T \ve{w} + C \sum_i \max(1 - y_i(\ve{w}^T \ve{x}_i + b), 0)
+            \end{align*}
+        </li>
+
+    </ul>
+
+    <div class="page-header"><h2>Bagging</h2></div>
+
+    <ul>
+        <li>
+            <b>Out-of-Bag Error</b>
+            <ul>
+                <li>
+                    Definition
+                    <ul>
+                        <li>
+                            Let $Z_i$ denote the number of sampled datasets that does not contain $(\ve{x}_i, y_i)$:
+                            $$Z_i = \sum_{j=1}^m \delta( (\ve{x}_i, y_i) \not\in D_j ) $$
+                        </li>
+                        <li>
+                            The out-of-bag error is defined as:
+                            \begin{align*}
+                            \epsilon_{\mathrm{OOB}} = \frac{1}{n} \sum_{i=1}^n \frac{1}{Z_i} \sum_{j: (\ve{x}_i, y_i) \not\in D_j } \ell(h_{D_j}(\ve{x}_i), y_i)
+                            \end{align*}
+                        </li>
+                    </ul>
+                </li>
+                <li>The out-of-bag error is an unbiased estimator of the test error.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <div class="page-header"><h2>Boosting</h2></div>
+
+    <ul>
+        <li>Boosting reduces <i>bias</i>.</li>
+        <li>
+            It constructs a good learner (that with low training error) from weak learners
+            (those with high bias = high training error).
+        </li>
+        <li>
+            Boosting does so by forming an <i>ensemble</i>: $H(\ve{x}) = \sum_t \alpha^{(t)} h^{(t)}(\ve{x})$
+            where each $h^{(t)}$ is a weak learner and $\alpha^{(t)} \in \Real$.
+        </li>
+        <li>
+            Boosting can be thought of as doing <i>gradient descent in function space</i>.
+            <ul>
+                <li>
+                    Let $\ve{y}$ be the vector of labels of the training examples:
+                    $\ve{y} = (y_1, y_2, \dotsc, y_n)^T$.
+                </li>
+                <li>
+                    For any learner $h$, we may treat it as an $n$-dimensional vector
+                    $\ve{h} = (h(\ve{x}_1), h(\ve{x}_2), \dotsc, h(\ve{x}_n))^T$.
+                </li>
+                <li>
+                    There exists a loss function $\ell(\ve{h}, \ve{y})$ that we want to minimize.
+                    <ul>
+                        <li>
+                            For examples, we might want to minimize the square loss
+                            $\ell(\ve{h}, \ve{y}) = \sum_{i=1}^n ([\ve{h}]_i - [\ve{y}]_i)^2 = \sum_{i=1}^n (h(\ve{x}_i) - y_i)^2$
+                        </li>
+                        <li>
+                            AdaBoost (which we will talk about later) minimizes the exponential loss
+                            $\ell(h, \ve{y}) = \sum_{i=1}^n \exp(-[\ve{y}]_i [\ve{h}]_i) = \sum_{i=1}^n \exp(-y_i h(\ve{x}_i))$
+                        </li>
+                        <li>
+                            In general, the loss function should be convex and a sum of the same function
+                            applied to each training example.
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    We start with a learner $H^{(0)}$ that yields $\ve{H}^{(0)} = (0,0,\dotsc,0)^T$
+                    and then iteratively improve it by adding $h^{(1)}, h^{(2)}, \dotsc$
+                    until we have $\ve{H}^{(t)} = \sum_t \alpha^{(t)} \ve{h}^{(t)}(\ve{x}) \approx \ve{y}$.
+                    <ol>
+                        <li>Set $H^{(0)}$ to the zero model.</li>
+                        <li>
+                            Suppose you have $H^{(t)}$ already. <br>
+                            Set $H^{(t+1)} \gets H^{(t)} + \alpha^{(t+1)} h^{(t+1)}$.
+                        </li>
+                        <li>Repeat Step 2 until $\ve{H}^{(t)} \approx \ve{y}$.</li>
+                    </ol>
+                </li>
+                <li>
+                    Notice that, in the above algorithm, you make progress as long as $\ve{h}^{(t+1)} \cdot \ve{y} > 0$.
+                    <ul>
+                        <li>If $\ve{h}^{(t+1)} \cdot \ve{y} < 0$, then we may use $-\ve{h}^{(t+1)}$ instead.</li>
+                        <li>
+                            If $\ve{h}^{(t+1)} \cdot \ve{y} = 0$, this does not work.
+                            This is where we stop the algorithm.
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    It is a good idea to choose
+                    $$ h^{(t+1)} = \argmin_{h \in \mathcal{h}} \ell(\ve{H}^{(t)} + \alpha^{(t+1)} \ve{h}, \ve{y}) $$
+                    where $\mathcal{H}$ is the set of possible hypotheses.
+                </li>
+                <li>
+                    If $\alpha^{(t+1)}$ is a small constant, we may do the following Taylor expansion:
+                    \begin{align*}
+                        \ell(\ve{H}^{(t)} + \alpha^{(t+1)} \ve{h}, \ve{y})
+                        \approx \ell(\ve{H}^{(t)}, \ve{y}) + \alpha^{(t+1)} \big( \nabla \ell(\ve{H}^{(t)}, \ve{y}) \cdot \ve{h} \big)
+                    \end{align*}
+                    where
+                    \begin{align*}
+                        \nabla \ell(\ve{H}^{(t)}, \ve{y})
+                        = \bigg(
+                        \frac{\partial \ell(\ve{h},\ve{y})}{\partial [\ve{h}]_1 }\bigg|_{\ve{h} = \ve{H}^{(t)}},
+                        \frac{\partial \ell(\ve{h},\ve{y})}{\partial [\ve{h}]_2 }\bigg|_{\ve{h} = \ve{H}^{(t)}},
+                        \dotsc,
+                        \frac{\partial \ell(\ve{h},\ve{y})}{\partial [\ve{h}]_n }\bigg|_{\ve{h} = \ve{H}^{(t)}},
+                        \bigg)^T.
+                    \end{align*}
+                    As a result, we want to set
+                    \begin{align*}
+                        h^{(t+1)} = \argmin_{h \in \mathcal{H}}\nabla \ell(\ve{H}^{(t)}, \ve{y}) \cdot \ve{h}.
+                    \end{align*}
+                </li>
+                <li>
+                    Let us generalize the algorithm a little.
+                    <ul>
+                        <li>
+                            Let $\mathbb{A}$ be an algorithm that
+                            \begin{align*}
+                                \mathbb{A}((\ve{x}_1, r_1), (\ve{x}_2, r_2), \dotsc, (\ve{x}_n, r_n))
+                                = \argmin_{h \in \mathcal{H}} \sum_{i=1}^n r_i h(\ve{x}_i).
+                            \end{align*}
+                        </li>
+                        <li>
+                            Then, we would be able to find the optimal $\ve{h}^{(t+1)}$ by setting
+                            $$r_i = \frac{\partial \ell(\ve{h},\ve{y})}{\partial [\ve{h}]_i }\bigg|_{\ve{h} = \ve{H}^{(t)}}$$
+                            and then calling $\mathbb{A}$ with the $\ve{x}_i$s and the $r_i$s.
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    The above generalization gives us the <b>AnyBoost</b> algorithm.
+                    <ul>
+                        <li>Inputs
+                            <ul>
+                                <li>$\ell$ = the loss function</li>
+                                <li>$\alpha$ = the step size</li>
+                                <li>$\{(\ve{x}_i, y_i) : 1 \leq i \leq n\}$ = the training data</li>
+                                <li>$\mathbb{A}$ = the optimal model finding algorithm</li>
+                            </ul>
+                        </li>
+                        <li>
+                            Pseudocode:
+                            <blockquote>
+                                $\ve{H}^{(0)} \gets \ve{0}$ <br>
+                                <b>for</b> $t = 0$ <b>to</b> $T-1$ <b>do</b> <br>
+                                    &nbsp; &nbsp; &nbsp; &nbsp;
+                                    for all $i$, set
+                                    $r_i \gets \frac{\partial \ell(\ve{h},\ve{y})}{\partial [\ve{h}]_i }\bigg|_{\ve{h} = \ve{H}^{(t)}}$ <br>
+                                    &nbsp; &nbsp; &nbsp; &nbsp;
+                                    $h^{(t+1)} \gets \mathbb{A}((\ve{x}_1, r_1), (\ve{x}_2, r_2), \dotsc, (\ve{x}_n, r_n))$ <br>
+                                    &nbsp; &nbsp; &nbsp; &nbsp;
+                                    <b>if</b> $\sum_{i} r_i h^{(t+1)}(\ve{x}_i) < 0$ <b>then</b> <br>
+                                    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                                    $H^{(t+1)} \gets H^{(t)} + \alpha h^{(t+1)}$ <br>
+                                    &nbsp; &nbsp; &nbsp; &nbsp;
+                                    <b>else</b> <br>
+                                    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                                    <b>return</b> $H^{(t)}$ <br>
+                                    &nbsp; &nbsp; &nbsp; &nbsp;
+                                    <b>end</b> <br>
+                                <b>end</b> <br>
+                                <b>return</b> $H^{(T)}$
+                            </blockquote>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li>
+            <b>Gradient-Boosted Regression Tree (GBRT)</b>
+            <ul>
+                <li>Can be used with either classification or regression.</li>
+                <li>
+                    Assumes that the weak learner is a regressor.
+                    <ul>
+                        <li>Typically a CART tree with fixed depth (e.g. depth = 4).</li>
+                    </ul>
+                </li>
+                <li>Step size $\alpha$ is a small constant.</li>
+                <li>
+                    The loss function $\ell$ can be any differentiable convex function that decomposes over
+                    the training examples.  That is:
+                    $$\ell(\ve{h}, \ve{y}) = \sum_{i=1}^n \ell(h(\ve{x}_i), y_i).$$
+                </li>
+                <li>
+                    Problem: What is $\mathbb{A}$?
+                    That is, how to find a CART tree that minimizes $\sum_{i} r_i h(\ve{x}_i)$?
+                </li>
+                <li>
+                    We find a good CART tree by reducing it to the CART tree with square loss.
+                    <ul>
+                        <li>Let $t_i = -r_i$.</li>
+                        <li>
+                            We have that:
+                            \begin{align*}
+                            \argmin_{h \in \mathcal{H}} \sum_{i} r_i h(\ve{x}_i)
+                            &= \argmin_{h \in \mathcal{H}} - 2\sum_{i} t_i h(\ve{x}_i) \\
+                            &=  \argmin_{h \in \mathcal{H}} \sum_{i} [ t_i^2 -2 t_i h(\ve{x}_i) + (h(\ve{x}_i))^2 ]
+                            \end{align*}
+                            We can do the manipulation in the last line because $\sum_i t_i$ is a constant, and we
+                            can hand wave $\sum_i (h(\ve{x}_i))^2$ to be constant too.  So, the problem becomes:
+                            \begin{align*}
+                            \argmin_{h \in \mathcal{H}} \sum_{i} r_i h(\ve{x}_i)
+                            &= \argmin_{h \in \mathcal{H}} \sum_{i} (h(\ve{x}_i) - t_i)^2
+                            \end{align*}
+                            which is the square loss CART problem with label $t_i$.
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li>
+            <b>AdaBoost</b>
+            <ul>
+                <li>
+                    Setting
+                    <ul>
+                        <li>We are working with a classification problem.  That is $y \in \{ +1, -1 \}$.</li>
+                        <li>The weak learner can be any classifier: $h(\ve{x}) \in \{ +1, -1 \}.$</li>
+                        <li>Loss function = exponential loss = $\ell(\ve{h}, \ve{y}) = \sum_i \exp(-[\ve{y}]_i [\ve{h}]_i) $</li>
+                        <li>Find the step size $\alpha$ by doing line search along the direction $\ve{h}^{(t+1)}$.</li>
+                    </ul>
+                </li>
+                <li>
+                    We have that:
+                    \begin{align*}
+                        r_i
+                        = \frac{\partial \ell(\ve{h},\ve{y})}{\partial [\ve{h}]_i }\bigg|_{\ve{h} = \ve{H}^{(t)}}
+                        = -y_i \exp(-y_i H^{(t)}(\ve{x}_i))
+                    \end{align*}
+                </li>
+                <li>
+                    Define
+                    \begin{align*}
+                        Z &= \ell(\ve{H}^{(t)}, \ve{y}) = \sum_{i=1}^n \exp(-y_i H^{(t)}(\ve{x}_i)) \\
+                        w_i &= \frac{\exp(-y_i^{(t)} H(\ve{x}_i))}{Z}
+                    \end{align*}
+                    Here, $w_i$ is the fraction that the $i$th training example contributes to the loss.
+                </li>
+                <li>
+                    We now have that:
+                    \begin{align*}
+                    \argmin_{h\in\mathcal{H}} \sum_{i=1}^n r_i h(x_i)
+                    &= \argmin_{h\in\mathcal{H}} \bigg( - \sum_{i=1}^n y_i \exp(-y_i H^{(t)}(\ve{x}_i)) h(x_i) \bigg)\\
+                    &= \argmin_{h\in\mathcal{H}} \bigg( - \sum_{i=1}^n y_i w_i h(x_i) \bigg) \\
+                    &= \argmin_{h\in\mathcal{H}} \bigg( \sum_{i: y_i h(x_i) = -1} w_i - \sum_{i: y_i h(x_i) = 1} w_i \bigg) \\
+                    &= \argmin_{h\in\mathcal{H}} \bigg( 2 \sum_{i: y_i h(x_i) = -1} w_i - 1 \bigg) \\
+                    &= \argmin_{h\in\mathcal{H}} \sum_{i: y_i h(x_i) = -1} w_i
+                    \end{align*}
+                    The term $\sum_{i: y_i h(x_i) = -1} w_i$ is called the <b>weighted classification error</b>.
+                    It is denoted by $\epsilon$.
+                </li>
+                <li>
+                    So, in AdaBoost, we need an algorithm that takes the training data and weights over them
+                    and then produces a classifier that minimizes or gives low weighted classification error.
+                    <ul>
+                        <li>In fact, the classifier doesn't have to do that well.</li>
+                        <li>It only needs to make $\epsilon < 0.5$.</li>
+                    </ul>
+                </li>
+                <li>
+                    Here's how to determine the step size $\alpha^{(t+1)}$.
+                    \begin{align*}
+                        \alpha^{(t+1)} = \argmin_{\alpha} \sum_{i=1}^n \exp(-y_i [H^{(t)}(\ve{x}_i) + \alpha h^{(t+1)}(\ve{x}_i)])
+                    \end{align*}
+                    Differentiate with respect to $\alpha$ and set to $0$, we have:
+                    \begin{align*}
+                    - \sum_{i=1}^n y_i  h^{(t+1)}(\ve{x}_i) \exp(-y_i [H^{(t)}(\ve{x}_i) + \alpha h^{(t+1)}(\ve{x}_i)]) &= 0 \\
+                    - \sum_{i=1}^n y_i  h^{(t+1)}(\ve{x}_i) \exp(-y_i H^{(t)}(\ve{x}_i)) \exp(-y_i \alpha h^{(t+1)}(\ve{x}_i)) &= 0 \\
+                    - \sum_{y_i  h^{(t+1)} = 1}^n \exp(-y_i H^{(t)}(\ve{x}_i)) e^{-\alpha} + \sum_{y_i  h^{(t+1)} = -1}^n \exp(-y_i H^{(t)}(\ve{x}_i)) e^{\alpha}&= 0 \\
+                    - \sum_{y_i  h^{(t+1)} = 1}^n w_i e^{-\alpha} + \sum_{y_i  h^{(t+1)} = -1}^n w_i e^{\alpha}&= 0 \\
+                    - e^{-\alpha} \sum_{y_i  h^{(t+1)} = 1}^n w_i  +  e^{\alpha} \sum_{y_i  h^{(t+1)} = -1}^n w_i&= 0 \\
+                    - e^{-\alpha} (1 - \epsilon)  +  e^{\alpha} \epsilon &= 0 \\
+                    e^{2\alpha} &= \frac{1 - \epsilon}{\epsilon} \\
+                    \alpha &= \frac{1}{2} \ln \frac{1 - \epsilon}{\epsilon}
+                    \end{align*}
+                </li>
+                <li>
+                    Let us compute the value of $Z$ after the update.
+                    \begin{align*}
+                        \ell(\ve{H}^{(t)} + \alpha^{(t+1)}\ve{h}^{(t+1)}, \ve{y})
+                        &= \sum_{i=1}^n \exp(- y_i H^{(t)}(\ve{x}_i) - y_i \alpha^{(t+1)}h^{(t+1)}(\ve{x}_i) ) \\
+                        &= \sum_{i=1}^n \exp(- y_i H^{(t)}(\ve{x}_i)) \exp(- y_i \alpha^{(t+1)}h^{(t+1)}(\ve{x}_i) ) \\
+                        &= Z \sum_{i=1}^n w_i \exp(- y_i \alpha^{(t+1)}h^{(t+1)}(\ve{x}_i) ) \\
+                        &= Z \bigg( \sum_{i: y_i h^{(t+1)}(\ve{x}_i) = 1}^n w_i \exp(- \alpha^{(t+1)} ) + \sum_{i: y_i h^{(t+1)}(\ve{x}_i) = -1}^n w_i \exp(\alpha^{(t+1)} ) \bigg) \\
+                        &= Z \bigg( \sqrt{\frac{\epsilon}{1 - \epsilon}} \sum_{i: y_i h^{(t+1)}(\ve{x}_i) = 1}^n w_i  + \sqrt{\frac{1 - \epsilon}{\epsilon}} \sum_{i: y_i h^{(t+1)}(\ve{x}_i) = -1}^n w_i  \bigg) \\
+                        &= Z \bigg( \sqrt{\frac{\epsilon}{1 - \epsilon}} (1 - \epsilon)  + \sqrt{\frac{1 - \epsilon}{\epsilon}} \epsilon \bigg) \\
+                        &= Z (2 \sqrt{\epsilon(1-\epsilon)})
+                    \end{align*}
+                    So, the weight after the update becomes:
+                    $$ w_i \gets w_i \frac{ \exp(- \alpha^{(t+1)} y_i h^{(t+1)}) } { 2 \sqrt{\epsilon(1-\epsilon)}} $$
+                </li>
+                <li>
+                    Pseudocode
+                    <blockquote>
+                        $\ve{H}^{(0)} \gets \ve{0}$ <br>
+                        for all $i$, set $w_i \gets 1/n$ (start with all weights equal) <br>
+                        <b>for</b> $t = 0$ <b>to</b> $T-1$ <b>do</b> <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp;
+                        $h \gets \mathbb{A}((\ve{x}_1, y_1, w_1), (\ve{x}_2, y_2, w_2), \dotsc, (\ve{x}_n, y_n, w_n))$
+                        <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp;
+                        $\epsilon \gets \sum_{i: y_i h(\ve{x}_i) = -1} w_i$ <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp;
+                        <b>if</b> $w_i < 0.5$ <b>then</b> <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                        $\alpha \gets 0.5 \ln((1 - \epsilon) / \epsilon)$ <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                        $H^{(t+1)} \gets H^{(t)} + \alpha h$ <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                        for all $i$, $w_i \gets w_i \exp(-\alpha h(\ve{x}_i) y_i) / (2 \sqrt{\epsilon(1 - \epsilon)} )$ <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp;
+                        <b>else</b> <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                        <b>return</b> $H^{(t)}$ <br>
+                        &nbsp; &nbsp; &nbsp; &nbsp;
+                        <b>end</b> <br>
+                        <b>end</b> <br>
+                        <b>return</b> $H^{(T)}$
+                    </blockquote>
+                </li>
+                <li>
+                    Convergence
+                    <ul>
+                        <li>Let us compute the loss after the $t$th iteration: $\ell(\ve{H}^{(t)}, \ve{y})$.</li>
+                        <li>
+                            We have that $\ell(\ve{H}^{(0)}, \ve{y})
+                            = \sum_{i=1}^n \exp(-y_i H^{(0)}(\ve{x}_i))
+                            = \sum_{i=1}^n \exp(-y_i 0)
+                            = n$.
+                        </li>
+                        <li>
+                            So,
+                            \begin{align*}
+                            \ell(\ve{H}^{(t)}, \ve{y})
+                            = n \prod_{i=1}^t 2 \sqrt{\epsilon^{(i)}(1 - \epsilon^{(i)})}
+                            \end{align*}
+                            where $\epsilon^{(i)}$ is the weighted classification error computed in the $i$th iteration.
+                        </li>
+                        <li>
+                            Let $c = \argmax_i \epsilon^{(i)}(1 - \epsilon^{(i)})$.  We have that:
+                            \begin{align*}
+                            \ell(\ve{H}^{(t)}, \ve{y})
+                            \leq n \big( 2 \sqrt{\epsilon^{(c)}(1 - \epsilon^{(c)})} \big)^t
+                            \end{align*}
+                        </li>
+                        <li>
+                            The function $f(x) = x(1-x)$ is maximized at $x = 1/2$, which yields $f(x) \leq f(1/2) = 1/4$.
+                        </li>
+                        <li>
+                            As a result, $\epsilon^{(c)}(1 - \epsilon^{(c)}) = 1/4 - \gamma^2$ for some
+                            constant $\gamma > 0$.
+                            This means that:
+                            \begin{align*}
+                            \ell(\ve{H}^{(t)}, \ve{y})
+                            \leq n \big( 2 (1/4 - \gamma^2)^{1/2} \big)^t
+                            = n (1 - 4\gamma^2)^{t/2}.
+                            \end{align*}
+                            In other words, <b>the loss decays exponentially as a function of the number of iteration!</b>
+                        </li>
+                        <li>
+                            Now, consider the training error $\sum_{i=1}^n \delta(H^{(t)}(\ve{x}_i) \neq y_i)$.
+                            Since $\delta(H^{(t)}(\ve{x}_i) \neq y_i) \leq \exp(-y_i H^{(t)}(\ve{x}_i))$,
+                            we have that $\sum_{i=1}^n \delta(H^{(t)}(\ve{x}_i) \neq y_i)
+                            \leq \ell(\ve{H}^{(t)}, \ve{y}).$
+                            In other words, the exponential loss bounds the training error from above.
+                        </li>
+                        <li>
+                            This means that, once the exponential loss is less than $1$, the training error must be $0$.
+                        </li>
+                        <li>
+                            Consequently, <b>AdaBoost yields a classifier with zero training loss in $O(\log n)$ time.</b>
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    Implementation
+                    <ul>
+                        <li>What is the weak learner to use?</li>
+                        <li>
+                            Homework assignment of CS 4780 suggests the weighted CART tree.
+                            <ul>
+                                <li>Input: Each training example has an associated weight $w_i$ such that $\sum_i w_i = 1$.</li>
+                                <li>
+                                    At leaf, set the label to $T_S = (\sum_{i \in S} w_i y_i) / (\sum_{i \in S} w_i)$.
+                                </li>
+                                <li>
+                                    At an internal node, find a split that minimizes:
+                                    \begin{align*}
+                                    \sum_{i\in L} w_i (y_i - T_L)^2 + \sum_{i\in R} w_i (y_i - T_R)^2
+                                    \end{align*}
+                                    where
+                                    \begin{align*}
+                                    T_L &= \frac{\sum_{i\in L} w_i y_i}{\sum_{i \in L} w_i} \\
+                                    T_R &= \frac{\sum_{i\in R} w_i y_i}{\sum_{i \in R} w_i}.
+                                    \end{align*}
+                                </li>
+                                <li>
+                                    Classification: Descend to leaf and compute the sign of the label.
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <div class="page-header"></div>
+    <p>Last modified: 2017/05/16</p>
+</div>
+
+<script
+  src="https://code.jquery.com/jquery-3.2.1.min.js"
+  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+  crossorigin="anonymous"></script>
+<!-- Google Code Prettifier -->
+<script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+</body>
+</html>
