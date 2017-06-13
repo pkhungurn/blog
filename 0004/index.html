@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Deep Learning Book: Summary of Chapter 6</title>
+
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/theme.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- MathJax -->
+    <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+    });
+    </script>
+    <script type="text/javascript"
+            src="../MathJax/MathJax.js?config=TeX-AMS_HTML-full">
+    </script>
+</head>
+<body>
+<div class="container">
+    \(
+    \newcommand{\ve}[1]{\mathbf{#1}}
+    \newcommand{\diag}{\mathrm{diag}}
+    \newcommand{\Real}{\mathbb{R}}
+    \newcommand{\tr}{\mathbb{tr}}
+    \DeclareMathOperator*{\argmin}{arg\,min}
+    \DeclareMathOperator*{\argmax}{arg\,max}
+    \)
+
+
+    <h1>Deep Learning Book: Summary of Chapter 6</h1>
+
+    <p>
+        I came out of the computer science PhD program at Cornell having discovered that the world
+        of computer science has shifted under my feet.  Suddenly, AI and machine learning has become all the rage,
+        galvanized by the groundbreaking success of deep learning.  While computer graphics will always be
+        the subfield of computer science that I love the most, I have a feeling that, if I don't become knowledgeable
+        in machine learning, especially deep learning, my job security will be blown away in the near future.
+    </p>
+
+    <p>
+        The above is why I started study machine learning, beginning by taking
+        <a href="http://www.cs.cornell.edu/courses/cs4780/2017sp/">CS 4780: Machine Learning</a>
+        during my last semester at Cornell.  However, the course only touched briefly upon deep learning,
+        whose body of knowledge has been expanding at an alarming rate recently.  As a result, I don't know
+        what the heck are recurrent neural network, LSTM networks, generative adversarial networks, etc.
+    </p>
+
+    <p>
+        To become more literate in deep learning, I will be reading the
+        <a href="http://www.deeplearningbook.org/">Deep Learning</a>
+        book by Goodfellow, Bengio, and Courville.  I've started reading from Chapter 6, and I
+        will pose the summary of each chapter that I read in this blog.
+    </p>
+
+    <p>So, without further ado, let's get on with the summary.</p>
+
+    <h2>Deep Feedforward Networks</h2>
+
+    <ul>
+        <li>Synnonyms: <i>feedforward neural networks</i>, or <i>multilayer preceptions (MLPs)</i>.</li>
+        <li>Goal: Approximate some function $f^*$ that maps input $\ve{x}$ to output $\ve{y}$.</li>
+        <li>
+            A feedforward network defines a mapping $\ve{y} = f(\ve{x},\ve{\theta})$ where $\ve{\theta}$
+            is the parameter values that are learned.
+        </li>
+        <li>The networks are feedforward because information flows through the network like it is
+        a directed acyclic graph.  There are not <i>feedback</i> connections.  The computed values
+        are not fed back into the network itself.</li>
+        <li>Feedforward neural networks are called <i>networks</i> because they are represented by
+        composing together many functions.
+            <ul>
+                <li>For example, we may have $f(\ve{x}) = f^{(3)}(f^{(2)}(f^{(1)}(\ve{x})))$</li>
+                <li>$f^{(1)}$ is called first layer, $f^{(2)}$ is called secondary, and so on.</li>
+                <li>The final layer, is called <i>the output layer</i>.</li>
+                <li>Layers other than the first layer and the output layer are called <i>hidden layers</i>.</li>
+            </ul>
+        </li>
+        <li>
+            Feedforward networks are more powerful than linear models. They can represent the XOR function
+            while no linear models cannot do so.
+        </li>
+    </ul>
+
+    <h2>Gradient-Based Learning</h2>
+
+    <div class="page-header"></div>
+    <p>Last modified: 2017/06/13</p>
+</div>
+
+<!-- <script
+  src="https://code.jquery.com/jquery-3.2.1.min.js"
+  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+  crossorigin="anonymous"></script> -->
+<!-- Google Code Prettifier -->
+<!-- <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script> -->
+</body>
+</html>
