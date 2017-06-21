@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>A Tool for Studying Japanese</title>
+
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/theme.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+<div class="container">
+    <h1>A Tool for Studying Japanese</h1>
+
+    <div id="gameDiv">
+    </div>
+
+    <!--
+    <div id="gameDiv">
+        <h1 align="center">鏡</h1>
+        <p align="center">Meaning</p>
+        <p align="center">
+            <input type="text" style="width: 200px; text-align: center">
+        </p>
+        <p align="center">
+            <button style="width: 200px">Check!</button>
+        </p>
+    </div>
+
+    <div id="gameDiv">
+        <h1 align="center">鏡</h1>
+        <p align="center">Meaning</p>
+        <p align="center">
+            <input type="text" style="width: 200px; text-align: center">
+        </p>
+        <p align="center">
+            <button style="width: 200px">Check!</button>
+        </p>
+    </div>
+    -->
+
+
+    <div class="page-header"></div>
+    <p>Last modified: 2017/06/21</p>
+</div>
+
+<script
+        src="https://code.jquery.com/jquery-3.2.1.min.js"
+        integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        crossorigin="anonymous"></script>
+
+<script type="text/javascript">
+    var data = [
+        {
+            "word": "鐘",
+            "reading": "かね",
+            "meaning": "bell",
+            "examples": [
+                "寺の[鐘]を聞きながら新年を迎える。"
+            ]
+        },
+        {
+            "word": "鈴",
+            "reading": "すず",
+            "meaning": "round bell",
+            "examples": [
+                "お土産に、綺麗な音の[鈴]を買った。"
+            ]
+        },
+        {
+            "word": "笛",
+            "reading": "ふえ",
+            "meaning": "flute",
+            "examples": [
+                "竹で作った[笛]を吹く。"
+            ]
+        },
+        {
+            "word": "網",
+            "reading": "あみ",
+            "meaning": "net",
+            "examples": [
+                "[網]で魚を捕る。"
+            ]
+        },
+        {
+            "word": "綱",
+            "reading": "つな",
+            "meaning": "thick rope",
+            "examples": [
+                "馬を[綱]でつなぐ。"
+            ]
+        },
+        {
+            "word": "縄",
+            "reading": "なわ",
+            "meaning": "thin rope",
+            "examples": [
+                "危険区域に[縄]を張り、立ち入り禁止にした。"
+            ]
+        },
+        {
+            "word": "鎖",
+            "reading": "くさり",
+            "meaning": "chain",
+            "examples": [
+                "綺麗な貝に[鎖]をつけてネックレスにした。"
+            ]
+        },
+        {
+            "word": "筒",
+            "reading": "つつ",
+            "meaning": "pipe, tube",
+            "examples": [
+                "竹の[筒]に花を生けた。"
+            ]
+        },
+        {
+            "word": "器",
+            "reading": "うつわ",
+            "meaning": "container",
+            "examples": [
+                "ガラスの[器]にサラダを盛る。"
+            ]
+        },
+        {
+            "word": "杯",
+            "reading": "さかずき",
+            "meaning": "sake cup",
+            "examples": [
+                "[杯]にたっぷり酒を注いだ。"
+            ]
+        },
+        {
+            "word": "柄",
+            "reading": "え",
+            "meaning": "handle",
+            "examples": [
+                "ナイフは[柄]の方を相手に向けて渡すものだ。"
+            ]
+        },
+        {
+            "word": "傘",
+            "reading": "かさ",
+            "meaning": "umbrella",
+            "examples": [
+                "電車の中の忘れ物では、[傘]が一番多い。"
+            ]
+        },
+        {
+            "word": "旗",
+            "reading": "はた",
+            "meaning": "flag",
+            "examples": [
+                "[旗]を振って選手を励ます。"
+            ]
+        },
+        {
+            "word": "鏡",
+            "reading": "かがみ",
+            "meaning": "mirror",
+            "examples": [
+                "大きな[鏡]に全身を映す。"
+            ]
+        },
+        {
+            "word": "棚",
+            "reading": "たな",
+            "meaning": "shelf",
+            "examples": [
+                "[棚]の上に箱を乗せる。"
+            ]
+        }
+    ];
+
+    function randInt(n) {
+        return Math.floor(Math.random() * n)
+    }
+
+    function chooseRandomItem(data) {
+        return data[randInt(data.length)];
+    }
+
+    function newProblem(currentItem) {
+        var item = null;
+        while (true) {
+            item = chooseRandomItem(data);
+            if (item !== currentItem) {
+                break;
+            }
+        }
+        var question = makeReadingQuestion(item, $("#gameDiv"));
+        question.run();
+    }
+
+    function makeReadingQuestion(item, gameDiv) {
+        return {
+            html: function () {
+                return "<table class='table'>" +
+                    "<tr><td id='wordCell'><h1 align='center'>" + item.word + "</h1></td></tr>" +
+                    "<tr><td id='intructionCell' align='center' style='border: none'>Reading</td></tr>" +
+                    "<tr><td id='answerCell' style='border: none' align='center'><input type='text' id='userText' style='width: 100%; text-align: center'></td></tr>" +
+                    "<tr><td id='buttonCell' style='border: none'><button style='width: 100%' id='checkButton'>Check!</button></td></tr>" +
+                    "</table>";
+            },
+            check: function() {
+                var userText = $("#userText");
+                var answer = $.trim(userText.val());
+                userText.val(item.reading);
+                userText.prop("disabled", true);
+
+                var wordCell = $("#wordCell");
+                var instructionCell = $("#intructionCell");
+                var answerCell = $("#answerCell");
+                var buttonCell = $("#buttonCell");
+
+                if (answer == item.reading) {
+                    wordCell.addClass("success");
+                    instructionCell.addClass("success");
+                    answerCell.addClass("success");
+                    buttonCell.addClass("success");
+                } else {
+                    wordCell.addClass("danger");
+                    instructionCell.addClass("danger");
+                    answerCell.addClass("danger");
+                    buttonCell.addClass("danger");
+                }
+
+                buttonCell.html("<button style='width: 100%' id='nextButton'>Next!</button>");
+
+                $("#nextButton").click(function() {
+                    newProblem(item);
+                });
+                $("#nextButton").focus();
+            },
+            run: function () {
+                var thou = this;
+                gameDiv.html(this.html());
+                $("#userText").keyup(function(event){
+                    if(event.key == "Enter" && event.target == this) {
+                        if ($("#userText").val() != "") {
+                            thou.check();
+                        }
+                    }
+                });
+                $("#userText").focus();
+                $("#checkButton").click(function () {
+                    thou.check();
+                });
+            }
+        }
+    }
+
+    function readingQuestionHtml(item) {
+        return "<h1 align='center'>" + item.word + "</h1>" +
+            "<p align='center'>Reading</p>" +
+            "<p align='center'>" +
+            "<input type='text' style='width: 200px; text-align: center'>" +
+            "</p>" +
+            "<p align='center'>" +
+            "<button style='width: 200px'>Check!</button>";
+        "</p>";
+    }
+
+    newProblem(null);
+</script>
+
+<!-- Google Code Prettifier -->
+<!-- <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script> -->
+</body>
+</html>

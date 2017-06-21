@@ -96,8 +96,299 @@
 
     <h2>Gradient-Based Learning</h2>
 
+    <ul>
+        <li>
+            A machine learning can be built by specifying
+            (1) an optimization procedure, (2) a cost function,
+            and (3) a model family.
+        </li>
+        <li>
+            For a neural network, the loss function is almost
+            always non-convex.
+            <ul>
+                <li>Cannot use convex optimization.</li>
+                <li>Stochastic gradient descent has no convergence guarantees, and the final solution depends on the initial condition.</li>
+                <li>Important to initialize all weights to small random values.</li>
+                <li>Bias terms might be initialized to zero or small positive values.  (Why positive?)</li>
+                <li>Training algorithm is almost always based on gradient descent.</li>
+            </ul>
+        </li>
+        <li>Cost functions.
+            <ul>
+                <li>
+                    The parametric model definds a distribution
+                    $p(\ve{y} | \ve{x}; \ve{\theta})$.
+                </li>
+                <li>
+                    The approaches for prediction:
+                    <ul>
+                        <li>
+                            Predict the whole distribution of $\ve{y}$ by finding $\ve{\theta}$ that maximizes the likelihood.
+                        </li>
+                        <li>Predict some statistic of $\ve{y}$ conditioned on $\ve{x}$.</li>
+                    </ul>
+                </li>
+                <li>
+                    Learning with maximum likelihood.
+                    <ul>
+                        <li>The cost function is simply the negative log-likelihood.
+                            <ul>
+                                <li>In other words, the cross
+                                    entropy beween the training
+                                    data and the model:
+                                    $$J(\ve{\theta})
+                                    = -E_{\ve{x},\ve{y}\sim p_\mathrm{data}}[\log p_{\mathrm{model}}(\ve{y}|\ve{x})]$$
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            This approach removes the burden of designing cost functions for each model.
+                            <ul>
+                                <li>You only have to specify $p(\ve{y}|\ve{x})$, and you get the cost function automatically</li>
+                            </ul>
+                        </li>
+                        <li>
+                            Another advantage: good gradients.
+                            <ul>
+                                <li>When designing networks, we must make sure that gradients are large and predictable.</li>
+                                <li>Functions that become flat are not good.</li>
+                                <li>Log-likelihood helps because:
+                                    <ul>
+                                        <li>Many models involves exponentials, which can become very flat when the argument is very negative.</li>
+                                        <li>The log function undoes the exponential.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>Disadvantage: cross-entropy might not have a minimum value.
+                            <ul>
+                                <li>It is possible, in some model, to attain negative infinity cross-entropy.</li>
+                                <li>Regularization helps here.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li>Learning conditional statistics
+                    <ul>
+                        <li>Instead of learning a full distribution $p(\ve{y}|\ve{x};\ve{\theta})$, we might often want to learn one conditional statistics of $\ve{y}$ given $\ve{x}$.
+                            <ul>
+                                <li>For example, predict the mean of $\ve{y}$ given $\ve{x}$.</li>
+                            </ul>
+                        </li>
+                        <li>A calculus of variation perspective.
+                            <ul>
+                                <li>With the absense of parameters, we can think of finding a function $f(\ve{x})$ that gives us the conditional statistics of $\ve{y}$ that we want.</li>
+                                <li>The identity of function $f$ that we want is determined by the cost function.</li>
+                                <li>As such, the cost function is not a function per se.  It is a <i>functinal</i>; i.e., a mapping from the set of functions to a real number.</li>
+                                <li>Solving optimization problems with respect to functions requires tools from <i>calculus of variation</i>.</li>
+                            </ul>
+                        </li>
+                        <li>Calculus of variation may be used to derive the following results:
+                            <ol>
+                                <li>If
+                                    $$f^* = \argmin_f E_{\ve{x},\ve{y}\sim p_{\mathrm{data}}}[\|\ve{y} - f(\ve{x}) \|^2]$$ then,
+                                    $$f^* = E_{\ve{y}\sim p_{\mathrm{data}(\ve{y}|\ve{x})}}[\ve{y}]$$
+                                </li>
+                                <li>If
+                                    $$f^* = \argmin_f E_{\ve{x},\ve{y}\sim p_{\mathrm{data}}}[\|\ve{y} - f(\ve{x}) \|_1]$$ then,
+                                    $f^*$ is a function that predices the <i>median</i> of $\ve{y}$ conditioned on $\ve{x}$.
+                                </li>
+                            </ol>
+                        </li>
+                        <li>Mean squared and mean absolute error lead to poor results when used with gradient-based optimization.
+                            <ul>
+                                <li>Units can saturate and have small gradients</li>
+                                <li>Cross-entropy is thus more popular.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li>Output units.
+            <ul>
+                <li>We suppose that the feedforward network provides a set of hidden features defined by $\ve{h} = f(\ve{x}, \ve{\theta})$.</li>
+                <li>The output layer provides some additional transformation from the features to complete that task that the network must perform.</li>
+                <li>Linear units.
+                    <ul>
+                        <li>Given features $\ve{h}$, the layer of linear output unit produces a vector $\hat{\ve{y}} = \ve{W}^T\ve{h} + \ve{b}. $</li>
+                        <li>The output $\hat{\ve{y}}$ is used as a mean of a conditional Gaussian distribution:
+                            $$ p(\ve{y} | \ve{x}) = \mathcal{N}(\ve{y};\hat{\ve{y}}, \ve{I})$$
+                        Maximizing the log-likelihood is equivalent to minimizing the mean squared error.
+                        </li>
+                        <li>If one wants to make the covariance matrix also a function of the input, it is better to use other types of output units to do so.</li>
+                        <li>Linear units do not saturate, so is very easy to optimize with gradient descent.</li>
+                    </ul>
+                </li>
+                <li>Sigmoid units.
+                    <ul>
+                        <li>The sigmoid unit is used with binary classification; i.e. $y \in \{0,1\}$.</li>
+                        <li>In the maximum likelihood approach, we need to define a Bernoulli distribution over $y$ conditioned on $\ve{x}$.
+                            <ul>
+                                <li>The distribution has only one parameter, which is $\Pr(y = 1| \ve{x})$.</li>
+                                <li>One must be careful to make sure that this number is in the interval $[0,1]$.</li>
+                            </ul>
+                        </li>
+                        <li>The sigmoid output unit is defined by:
+                            $$ \hat{y} = \sigma(\ve{w}^T \ve{h} + b) $$
+                            where
+                            $$ \sigma(x) = \frac{1}{1 + e^{-x}}.$$
+                            Here, the parameters of the unit are $\ve{w}$ and $b$.
+                        </li>
+                        <li>To specify the cost function for training, we need to specify the conditional probability $P(y | \ve{x})$.  Once we have done this, we get the cost funnction by applying the log-likelihood method.
+                        </li>
+                        <li>Let $z = \ve{w}^T \ve{x} + b$.</li>
+                        <li>To get a probability distribution, we construct an unnormalized probability distribution $\tilde{P}$ where:
+                        \begin{align*}
+                        \log \tilde{P}(y|\ve{x}) &= yz \\
+                        \tilde{P}(y|\ve{x}) &= \exp(yz).
+                        \end{align*}
+                        With this, the normalized distribution is given by:
+                        \begin{align*}
+                        P(y|\ve{x}) &= \frac{\tilde{P}(y|\ve{x})}{\tilde{P}(0|\ve{x}) + \tilde{P}(1|\ve{x})}
+                        = \frac{\exp(yz)}{1 + \exp(z)}.
+                        \end{align*}
+                        When $y = 0$, we have that:
+                        \begin{align*}
+                        P(0|\ve{x}) &= \frac{1}{1 + \exp(z)} = \sigma(-z) = \sigma((2y-1)z).
+                        \end{align*}
+                        When $y = 1$, we have that:
+                        \begin{align*}
+                        P(1|\ve{x}) 
+                        &= \frac{\exp(z)}{1 + \exp(z)}
+                        = \frac{1}{\exp(-z) + 1} 
+                        = \frac{1}{1 + \exp(-z)} 
+                        = \sigma(z)
+                        = \sigma((2y-1)z). 
+                        \end{align*}
+                        So, in both cases, we have that:
+                        \begin{align*}
+                        P(y|\ve{x}) &= \sigma((2y-1)z).
+                        \end{align*}
+                        </li>
+                        <li>The cost function is then given by:
+                            \begin{align*}
+                            J(\ve{\theta})
+                            &= -\log P(\ve{y}| \ve{x}) \\
+                            &= -\log \sigma((2y-1)z) \\
+                            &= \zeta((1-2y)z)
+                            \end{align*}
+                            where
+                            \begin{align*}
+                            \zeta(x) = \log(1 + e^x)
+                            \end{align*}
+                            is called the <i>softplus</i> function, which has some nice properties:
+                            <ul>
+                                <li>
+                                    It saturates only when $-(2y-1)z$ is very negative.  That is, when the clases implied by $y$ and $z$ agree. In other words, when we already have the correct answer.
+                                </li>
+                                <li>
+                                    When $y$ and $z$ do not agree, we can simplify $-(2y-1)z$ to $|z|$. As $|z|$ becomes large, $\zeta(|z|) \approx |z|$. So, the derivative asymptotes to $\mathrm{sign}(z)$.  This means that the derivative does not plateau at all when the answer is still wrong.
+                                </li>
+                            </ul>
+                        </li>
+                        <li>While the sigmoid's gradient does not saturate when used with cross-entropy cost function, it may saturate when used with other cost functions, such as the mean squared error loss.</li>
+                        <li>Numerical concerns:
+                            <ul>
+                                <li>Mathematically, the log of the sigmoid is always defined and finite.</li>
+                                <li>However, numerically, the arguument might become $0$, which can cause problems.</li>
+                                <li>As a result, it is best to write the negative log-likelihood as a function of $z$ instead of as a function of $\sigma(z)$.</li>
+                            </ul>
+                        </li>
+                    </ul>                    
+                </li>
+                <li>Softmax units.
+                    <ul>
+                        <li>This is used to represent a discrete probability distribution over a set of $k > 2$ values.
+                            <ul>
+                                <li>So, this is used to represent the result of multi-class classification.</li>
+                            </ul>
+                        </li>
+                        <li>We generalize the derivation of the sigmoid function.
+                            <ul>
+                                <li>In the sigmoid case, we compute $z = \ve{w}^T \ve{h} + b = \log \tilde{P}(y = 1 | \ve{x}).$  Then, we compute:
+                                    \begin{align*}
+                                    P(y=1|\ve{x}) = \frac{\exp(z)}{1 + \exp(z)} = \frac{1}{1 + \exp(-z)} = \sigma(\ve{z}).
+                                    \end{align*}
+                                </li>
+                                <li>In the softmax units, we instead compute a vector $\ve{z} = \ve{W}^T \ve{h} + \ve{b}$, where $z_i = \log \tilde{P}(\ve{y} = i | \ve{x})$.</li>
+                                <li>The softmax units has $k$ constituent units.  The $i$th unit is given by:
+                                    \begin{align*}
+                                        \mathrm{softmax}(\ve{z})_i = \frac{\exp(z_i)}{\sum_{j=1}^k \exp(z_j)}
+                                    \end{align*}
+                                </li>                                
+                            </ul>
+                        </li>                        
+                        <li>The softmax units work very well when used with the cross-entropy cost function.
+                            <ul>
+                                <li>Notice that:
+                                    \begin{align*}
+                                        \log \mathrm{softmax}(\ve{z})_i = z_i - \log \bigg(\sum_{j=1}^k \exp(z_j) \bigg).
+                                    \end{align*}
+                                </li>
+                                <li>
+                                    The first term cannot saturate.  So gradient descent would always proceed.
+                                </li>
+                                <li>
+                                    However, the second term encourages all the elements of $\ve{z}$ to be pushed down.
+                                </li>
+                                <li>
+                                    When maximizing log-likelihood, the softmax function heavily penalizes the most active incorrect prediction.
+                                    <ul>
+                                        <li>The second term can be roughly approximated by $\max_j z_j$.</li>
+                                        <li>If the correct answer already has the largest input to the softmax, then the $z_i$ term and the $\log \sum_{j} \exp(x_j) \approx z_i$ will roughly cancel.</li>
+                                    </ul>                                    
+                                </li>
+                            </ul>
+                        </li>
+                        <li>Unregularized maximum likelihood will drive the model to learn parameters that drive softmax to predict the fraction of 
+                            counts of each outcomes observed in the training set:
+                            \begin{align*}
+                            \mathrm{softmax}(\ve{z}(\ve{x}, \ve{\theta}))_i \approx \frac{\sum_{j=1}^m \mathbb{I}(y^{(j)} = i \wedge \ve{x}^{(j)} = \ve{x})}{\sum_{j=1}^m \mathbb{I}(\ve{x}^{(j)} = \ve{x})}
+                            \end{align*}
+                        </li>
+                        <li>As with the sigmoid function, objection functions that do not take the log of the softmax function does not work well with it.</li>
+                        <li>Saturation:
+                            <ul>
+                                <li>The softmax saturates when the differences between the inputs become extreme.</li>
+                                <li>To see this, first observe that the softmax output is invariant to adding the same scalar to each of the input's components:
+                                    $$ \mathrm{softmax}(\ve{z})_i = \mathrm{softmax}(\ve{z} + c)_i $$.
+                                </li>
+                                <li>As a result, 
+                                    $$ \mathrm{softmax}(\ve{z})_i = \mathrm{softmax}(\ve{z} - \max_j \{z_j \} )_i $$.
+                                    So the softmax function is driven by how much each components deviate from the maximum component.
+                                </li>
+                                <li>
+                                    As a result,
+                                    <ul>
+                                        <li>$\mathrm{softmax}(\ve{z})_i$ saturates to $1$ when $z_i$ is maximal, and it is much larger than other values.</li>
+                                        <li>$\mathrm{softmax}(\ve{z})_i$ saturates to $0$ whne $z_i$ is not maximal, and it is much smaller than some other values.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>Overparameterization:
+                            <ul>
+                                <li>The way we formulate the softmax units right now has $n$ degrees of freedom.</li>
+                                <li>However, only $n-1$ degrees of freedom is needed because the softmax units' values must sum up to 1.</li>
+                                <li>As such, we may require that $z_k = 0$.  (Note: This is what is done in the sigmoid function case.)</li>
+                                <li>However, there is not much difference in practice between using $n$ or $n-1$ degrees of freedom.</li>
+                            </ul>
+                        </li>
+                    </ul>                    
+                </li>
+                <li>
+                    Other output types.
+                    <ul>
+                        <li></li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
     <div class="page-header"></div>
-    <p>Last modified: 2017/06/13</p>
+    <p>Last modified: 2017/06/18</p>
 </div>
 
 <!-- <script
