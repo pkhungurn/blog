@@ -59,6 +59,8 @@
         integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
         crossorigin="anonymous"></script>
 
+<script src="wanakana.min.js"></script>
+
 <script type="text/javascript">
     var data = [
         {
@@ -183,6 +185,73 @@
         }
     ];
 
+    function checkDataValidity(data) {
+        if (!$.isArray(data)) {
+            return "Data is not an array.";
+        } else {
+            var i;
+            for (i = 0; i < data.length; i++) {
+                var item = data[i];
+                if (!item.hasOwnProperty("word")) {
+                    return "The " + i + "th item does not have the 'word' field.";
+                }
+                if (!item.hasOwnProperty("reading")) {
+                    return "The " + i + "th item does not have the 'reading' field.";
+                }
+                if (!wanakana.isHiragana(item.reading)) {
+                    return "The " + i + "th item's reading is not Hiragana.";
+                }
+                if (!item.hasOwnProperty("meaning")) {
+                    return "The " + i + "th item does not have the 'meaning' field.";
+                }
+            }
+            return "valid";
+        }
+    }
+
+    function decomposeToWordSequence(s) {
+        return s.split(/\s+/);
+    }
+
+    function decomposeMeaningString(meaningString) {
+        var meanings = meaningString.split(/[,\;]/);
+        meanings = meanings.map(function (x) {
+            return decomposeToWordSequence($.trim(x)).map(function (y) {
+                return y.toLowerCase();
+            });
+        });
+        return meanings;
+    }
+
+    function arraysEqual(a, b) {
+        if (a === b) return true;
+        if (a == null || b == null) return false;
+        if (a.length != b.length) return false;
+
+        // If you don't care about the order of the elements inside
+        // the array, you should sort both arrays here.
+
+        for (var i = 0; i < a.length; ++i) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+
+    function checkAnswerAgainstMeaning(answer, meaningString) {
+        var answerSequence = decomposeToWordSequence(answer);
+        var meanings = decomposeMeaningString(meaningString);
+        var found = false;
+        var i;
+        for (i = 0; i < meanings.length; i++) {
+            var meaning = meanings[i];
+            if (arraysEqual(answerSequence, meaning)) {
+                found = true;
+                break;
+            }
+        }
+        return found;
+    }
+
     function randInt(n) {
         return Math.floor(Math.random() * n)
     }
@@ -199,7 +268,15 @@
                 break;
             }
         }
-        var question = makeReadingQuestion(item, $("#gameDiv"));
+        var gameDiv = $("#gameDiv");
+        var question;
+        var choice = randInt(2);
+        if (choice === 0) {
+            question = makeReadingQuestion(item, gameDiv);
+        } else {
+            question = makeMeaningQuestion(item, gameDiv);
+        }
+
         question.run();
     }
 
@@ -213,9 +290,9 @@
                     "<tr><td id='buttonCell' style='border: none'><button style='width: 100%' id='checkButton'>Check!</button></td></tr>" +
                     "</table>";
             },
-            check: function() {
+            check: function () {
                 var userText = $("#userText");
-                var answer = $.trim(userText.val());
+                var answer = wanakana.toKana($.trim(userText.val()));
                 userText.val(item.reading);
                 userText.prop("disabled", true);
 
@@ -224,7 +301,7 @@
                 var answerCell = $("#answerCell");
                 var buttonCell = $("#buttonCell");
 
-                if (answer == item.reading) {
+                if (answer === item.reading) {
                     wordCell.addClass("success");
                     instructionCell.addClass("success");
                     answerCell.addClass("success");
@@ -238,7 +315,67 @@
 
                 buttonCell.html("<button style='width: 100%' id='nextButton'>Next!</button>");
 
-                $("#nextButton").click(function() {
+                var nextButton = $("#nextButton");
+                nextButton.click(function () {
+                    newProblem(item);
+                });
+                nextButton.focus();
+            },
+            run: function () {
+                var thou = this;
+                gameDiv.html(this.html());
+                var userText = $("#userText");
+                userText.keyup(function (event) {
+                    if (event.key === "Enter" && event.target === this) {
+                        if ($("#userText").val() !== "") {
+                            thou.check();
+                        }
+                    }
+                });
+                userText.focus();
+                $("#checkButton").click(function () {
+                    thou.check();
+                });
+            }
+        }
+    }
+
+    function makeMeaningQuestion(item, gameDiv) {
+        return {
+            html: function () {
+                return "<table class='table'>" +
+                    "<tr><td id='wordCell'><h1 align='center'>" + item.word + "</h1></td></tr>" +
+                    "<tr><td id='intructionCell' align='center' style='border: none'>Meaning</td></tr>" +
+                    "<tr><td id='answerCell' style='border: none' align='center'><input type='text' id='userText' style='width: 100%; text-align: center'></td></tr>" +
+                    "<tr><td id='buttonCell' style='border: none'><button style='width: 100%' id='checkButton'>Check!</button></td></tr>" +
+                    "</table>";
+            },
+            check: function () {
+                var userText = $("#userText");
+                var answer = $.trim(userText.val());
+                userText.val(item.meaning);
+                userText.prop("disabled", true);
+
+                var wordCell = $("#wordCell");
+                var instructionCell = $("#intructionCell");
+                var answerCell = $("#answerCell");
+                var buttonCell = $("#buttonCell");
+
+                if (checkAnswerAgainstMeaning(answer, item.meaning)) {
+                    wordCell.addClass("success");
+                    instructionCell.addClass("success");
+                    answerCell.addClass("success");
+                    buttonCell.addClass("success");
+                } else {
+                    wordCell.addClass("danger");
+                    instructionCell.addClass("danger");
+                    answerCell.addClass("danger");
+                    buttonCell.addClass("danger");
+                }
+
+                buttonCell.html("<button style='width: 100%' id='nextButton'>Next!</button>");
+
+                $("#nextButton").click(function () {
                     newProblem(item);
                 });
                 $("#nextButton").focus();
@@ -246,8 +383,8 @@
             run: function () {
                 var thou = this;
                 gameDiv.html(this.html());
-                $("#userText").keyup(function(event){
-                    if(event.key == "Enter" && event.target == this) {
+                $("#userText").keyup(function (event) {
+                    if (event.key == "Enter" && event.target == this) {
                         if ($("#userText").val() != "") {
                             thou.check();
                         }
@@ -261,18 +398,13 @@
         }
     }
 
-    function readingQuestionHtml(item) {
-        return "<h1 align='center'>" + item.word + "</h1>" +
-            "<p align='center'>Reading</p>" +
-            "<p align='center'>" +
-            "<input type='text' style='width: 200px; text-align: center'>" +
-            "</p>" +
-            "<p align='center'>" +
-            "<button style='width: 200px'>Check!</button>";
-        "</p>";
+    var message = checkDataValidity(data);
+    if (message == "valid") {
+        newProblem(null);
+    } else {
+        $("#gameDiv").html(message);
     }
 
-    newProblem(null);
 </script>
 
 <!-- Google Code Prettifier -->
