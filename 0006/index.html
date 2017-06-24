@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>Japanese Vocab Quiz Prototype</title>
+    <title>Japanese Flash Card Prototype</title>
 
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet">
@@ -20,7 +20,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>Japanese Vocab Quiz Prototype</h1>
+    <h1>Japanese Flash Card Prototype</h1>
 
     <div id="gameDiv">
     </div>
@@ -51,7 +51,7 @@
 
 
     <div class="page-header"></div>
-    <p>Last modified: 2017/06/24</p>
+    <p>Last modified: 2017/06/21</p>
 </div>
 
 <script
@@ -228,9 +228,6 @@
         if (a == null || b == null) return false;
         if (a.length != b.length) return false;
 
-        // If you don't care about the order of the elements inside
-        // the array, you should sort both arrays here.
-
         for (var i = 0; i < a.length; ++i) {
             if (a[i] !== b[i]) return false;
         }
@@ -260,7 +257,7 @@
         return data[randInt(data.length)];
     }
 
-    function newProblem(currentItem) {
+    function newCard(currentItem) {
         var item = null;
         while (true) {
             item = chooseRandomItem(data);
@@ -272,135 +269,135 @@
         var question;
         var choice = randInt(2);
         if (choice === 0) {
-            question = makeReadingQuestion(item, gameDiv);
+            question = new ReadingCard(item, gameDiv, null, null, newCard);
         } else {
-            question = makeMeaningQuestion(item, gameDiv);
+            question = new MeaningCard(item, gameDiv, null, null, newCard);
         }
 
         question.run();
     }
 
-    function makeReadingQuestion(item, gameDiv) {
-        return {
-            html: function () {
-                return "<table class='table'>" +
-                    "<tr><td id='wordCell'><h1 align='center'>" + item.word + "</h1></td></tr>" +
-                    "<tr><td id='readingCell' align='center' style='border: none'><input type='text' id='userText' style='width: 100%; text-align: center'></td></tr>" +
-                    "<tr><td id='meaningCell' style='border: none' align='center'>" + item.meaning + "</td></tr>" +
-                    "<tr><td id='buttonCell' style='border: none'><button style='width: 100%' id='checkButton'>Check!</button></td></tr>" +
-                    "</table>";
-            },
-            check: function () {
-                var userText = $("#userText");
-                var answer = wanakana.toKana($.trim(userText.val()));
-                userText.val(item.reading);
-                userText.prop("disabled", true);
-
-                var wordCell = $("#wordCell");
-                var readingCell = $("#readingCell");
-                var meaningCell = $("#meaningCell");
-                var buttonCell = $("#buttonCell");
-
-                if (answer === item.reading) {
-                    wordCell.addClass("success");
-                    readingCell.addClass("success");
-                    meaningCell.addClass("success");
-                    buttonCell.addClass("success");
-                } else {
-                    wordCell.addClass("danger");
-                    readingCell.addClass("danger");
-                    meaningCell.addClass("danger");
-                    buttonCell.addClass("danger");
-                }
-
-                buttonCell.html("<button style='width: 100%' id='nextButton'>Next!</button>");
-
-                var nextButton = $("#nextButton");
-                nextButton.click(function () {
-                    newProblem(item);
-                });
-                nextButton.focus();
-            },
-            run: function () {
-                var thou = this;
-                gameDiv.html(this.html());
-                var userText = $("#userText");
-                userText.keyup(function (event) {
-                    if (event.key === "Enter" && event.target === this) {
-                        if ($("#userText").val() !== "") {
-                            thou.check();
-                        }
-                    }
-                });
-                userText.focus();
-                $("#checkButton").click(function () {
-                    thou.check();
-                });
-            }
-        }
+    function Card(item, gameDiv, correctCallBack, wrongCallBack, nextCallBack) {
+        this.item = item;
+        this.gameDiv = gameDiv;
+        this.correctCallBack = correctCallBack;
+        this.wrongCallBack = wrongCallBack;
+        this.nextCallBack = nextCallBack;
     }
+    Card.prototype = {
+        constructor: Card,
+        html: function () {
+            return "";
+        },
+        run: function () {
+            var thou = this;
+            this.gameDiv.html(this.html());
 
-    function makeMeaningQuestion(item, gameDiv) {
-        return {
-            html: function () {
-                return "<table class='table'>" +
-                    "<tr><td id='wordCell'><h1 align='center'>" + item.word + "</h1></td></tr>" +
-                    "<tr><td id='readingCell' align='center' style='border: none'>" + item.reading + "</td></tr>" +
-                    "<tr><td id='meaningCell' style='border: none' align='center'><input type='text' id='userText' style='width: 100%; text-align: center'></td></tr>" +
-                    "<tr><td id='buttonCell' style='border: none'><button style='width: 100%' id='checkButton'>Check!</button></td></tr>" +
-                    "</table>";
-            },
-            check: function () {
-                var userText = $("#userText");
-                var answer = $.trim(userText.val());
-                userText.val(item.meaning);
-                userText.prop("disabled", true);
+            var showButton = $("#showButton");
+            showButton.click(function () {
+                thou.showAnswer();
+            });
+            showButton.focus();
 
-                var wordCell = $("#wordCell");
-                var readingCell = $("#readingCell");
-                var meaningCell = $("#meaningCell");
-                var buttonCell = $("#buttonCell");
+            $(window).off("keypress");
+        },
+        displayAnswer: function() {
+            // NO-OP
+        },
+        showAnswer: function () {
+            var thou = this;
 
-                if (checkAnswerAgainstMeaning(answer, item.meaning)) {
-                    wordCell.addClass("success");
-                    readingCell.addClass("success");
-                    meaningCell.addClass("success");
-                    buttonCell.addClass("success");
-                } else {
-                    wordCell.addClass("danger");
-                    readingCell.addClass("danger");
-                    meaningCell.addClass("danger");
-                    buttonCell.addClass("danger");
+            this.displayAnswer();
+
+            var buttonRow = $("#buttonRow");
+            buttonRow.html(
+                "<td id='correctCell' width='50%' style='border: none' align='center'>" +
+                "<button style='width: 100%' class='btn btn-danger' id='wrongButton'>&#10008; Too bad!</button>" +
+                "</td>" +
+                "<td id='correctCell' width='50%' style='border: none' align='center'>" +
+                "<button style='width: 100%' class='btn btn-success' id='correctButton'>&#10003; Got it!</button>" +
+                "</td>"
+            );
+
+            var correctButton = $("#correctButton");
+            var correctFunc = function () {
+                if (thou.correctCallBack !== null) {
+                    thou.correctCallBack(this.item);
                 }
+                thou.nextCallBack(this.item);
+            };
+            correctButton.click(correctFunc);
 
-                buttonCell.html("<button style='width: 100%' id='nextButton'>Next!</button>");
+            var wrongButton = $("#wrongButton");
+            var wrongFunc = function () {
+                if (thou.wrongCallBack !== null) {
+                    thou.wrongCallBack(this.item)
+                }
+                thou.nextCallBack(this.item);
+            };
+            wrongButton.click(wrongFunc);
 
-                $("#nextButton").click(function () {
-                    newProblem(item);
-                });
-                $("#nextButton").focus();
-            },
-            run: function () {
-                var thou = this;
-                gameDiv.html(this.html());
-                $("#userText").keyup(function (event) {
-                    if (event.key == "Enter" && event.target == this) {
-                        if ($("#userText").val() != "") {
-                            thou.check();
-                        }
-                    }
-                });
-                $("#userText").focus();
-                $("#checkButton").click(function () {
-                    thou.check();
-                });
-            }
+            $(window).keypress(function (event) {
+                if (event.key === "Enter" || event.key === "Space" || event.key === "2") {
+                    correctFunc();
+                } else if (event.key === "Escape" || event.key === "Backspace" || event.key === "1") {
+                    wrongFunc();
+                }
+            });
         }
+    };
+
+    function ReadingCard(item, gameDiv, correctCallBack, wrongCallBack, nextCallBack) {
+        Card.call(this, item, gameDiv, correctCallBack, wrongCallBack, nextCallBack);
     }
+    ReadingCard.prototype = Object.create(Card.prototype);
+    ReadingCard.prototype.constructor = ReadingCard;
+    ReadingCard.prototype.displayAnswer = function() {
+        var readingButton = $("#readingButton");
+        readingButton.html(this.item.reading);
+    };
+    ReadingCard.prototype.html = function() {
+        return "<table class='table'>" +
+            "<tr><td colspan='2' id='wordCell'><h1 align='center'>" + this.item.word + "</h1></td></tr>" +
+            "<tr><td colspan='2' id='readingCell' style='border: none' align='center'>" +
+            "<button style='width: 100%' class='btn btn-default' id='readingButton'>Reading = ???</button>" +
+            "</td></tr>" +
+            "<tr><td colspan='2' id='meaningCell' style='border: none' align='center'>" + this.item.meaning + "</td></tr>" +
+            "<tr id='buttonRow'>" +
+            "<td style='border: none' align='center'>" +
+            "<button class='btn btn-active' style='width: 100%' id='showButton'>Show answer...</button>" +
+            "</td>" +
+            "</tr>" +
+            "</table>";
+    };
+
+    function MeaningCard(item, gameDiv, correctCallBack, wrongCallBack, nextCallBack) {
+        Card.call(this, item, gameDiv, correctCallBack, wrongCallBack, nextCallBack);
+    }
+    MeaningCard.prototype = Object.create(Card.prototype);
+    MeaningCard.prototype.constructor = MeaningCard;
+    MeaningCard.prototype.displayAnswer = function() {
+        var meaningButton = $("#meaningButton");
+        meaningButton.html(this.item.meaning);
+    };
+    MeaningCard.prototype.html = function() {
+        return "<table class='table'>" +
+            "<tr><td colspan='2' id='wordCell'><h1 align='center'>" + this.item.word + "</h1></td></tr>" +
+            "<tr><td colspan='2' id='readingCell' style='border: none' align='center'>" + this.item.reading + "</td></tr>" +
+            "<tr><td colspan='2' id='meaningCell' style='border: none' align='center'>" +
+            "<button style='width: 100%' class='btn btn-default' id='meaningButton'>Meaning = ???</button>" +
+            "</td></tr>" +
+            "<tr id='buttonRow'>" +
+            "<td style='border: none' align='center'>" +
+            "<button class='btn btn-active' style='width: 100%' id='showButton'>Show answer...</button>" +
+            "</td>" +
+            "</tr>" +
+            "</table>";
+    };
 
     var message = checkDataValidity(data);
     if (message == "valid") {
-        newProblem(null);
+        newCard(null);
     } else {
         $("#gameDiv").html(message);
     }
