@@ -62,150 +62,28 @@
 <script src="wanakana.min.js"></script>
 
 <script type="text/javascript">
-    var data = [
-        {
-            "word": "鐘",
-            "reading": "かね",
-            "meaning": "bell",
-            "examples": [
-                "寺の[鐘]を聞きながら新年を迎える。"
-            ]
-        },
-        {
-            "word": "鈴",
-            "reading": "すず",
-            "meaning": "round bell",
-            "examples": [
-                "お土産に、綺麗な音の[鈴]を買った。"
-            ]
-        },
-        {
-            "word": "笛",
-            "reading": "ふえ",
-            "meaning": "flute",
-            "examples": [
-                "竹で作った[笛]を吹く。"
-            ]
-        },
-        {
-            "word": "網",
-            "reading": "あみ",
-            "meaning": "net",
-            "examples": [
-                "[網]で魚を捕る。"
-            ]
-        },
-        {
-            "word": "綱",
-            "reading": "つな",
-            "meaning": "thick rope",
-            "examples": [
-                "馬を[綱]でつなぐ。"
-            ]
-        },
-        {
-            "word": "縄",
-            "reading": "なわ",
-            "meaning": "thin rope",
-            "examples": [
-                "危険区域に[縄]を張り、立ち入り禁止にした。"
-            ]
-        },
-        {
-            "word": "鎖",
-            "reading": "くさり",
-            "meaning": "chain",
-            "examples": [
-                "綺麗な貝に[鎖]をつけてネックレスにした。"
-            ]
-        },
-        {
-            "word": "筒",
-            "reading": "つつ",
-            "meaning": "pipe, tube",
-            "examples": [
-                "竹の[筒]に花を生けた。"
-            ]
-        },
-        {
-            "word": "器",
-            "reading": "うつわ",
-            "meaning": "container",
-            "examples": [
-                "ガラスの[器]にサラダを盛る。"
-            ]
-        },
-        {
-            "word": "杯",
-            "reading": "さかずき",
-            "meaning": "sake cup",
-            "examples": [
-                "[杯]にたっぷり酒を注いだ。"
-            ]
-        },
-        {
-            "word": "柄",
-            "reading": "え",
-            "meaning": "handle",
-            "examples": [
-                "ナイフは[柄]の方を相手に向けて渡すものだ。"
-            ]
-        },
-        {
-            "word": "傘",
-            "reading": "かさ",
-            "meaning": "umbrella",
-            "examples": [
-                "電車の中の忘れ物では、[傘]が一番多い。"
-            ]
-        },
-        {
-            "word": "旗",
-            "reading": "はた",
-            "meaning": "flag",
-            "examples": [
-                "[旗]を振って選手を励ます。"
-            ]
-        },
-        {
-            "word": "鏡",
-            "reading": "かがみ",
-            "meaning": "mirror",
-            "examples": [
-                "大きな[鏡]に全身を映す。"
-            ]
-        },
-        {
-            "word": "棚",
-            "reading": "たな",
-            "meaning": "shelf",
-            "examples": [
-                "[棚]の上に箱を乗せる。"
-            ]
-        }
-    ];
-
     function checkDataValidity(data) {
         if (!$.isArray(data)) {
-            return "Data is not an array.";
+            throw "Data is not an array.";
+        } else if (data.length === 0) {
+            throw "Data array is empty.";
         } else {
             var i;
             for (i = 0; i < data.length; i++) {
                 var item = data[i];
                 if (!item.hasOwnProperty("word")) {
-                    return "The " + i + "th item does not have the 'word' field.";
+                    throw "The " + i + "th item does not have the 'word' field.";
                 }
                 if (!item.hasOwnProperty("reading")) {
-                    return "The " + i + "th item does not have the 'reading' field.";
+                    throw "The " + i + "th item does not have the 'reading' field.";
                 }
                 if (!wanakana.isHiragana(item.reading)) {
-                    return "The " + i + "th item's reading is not Hiragana.";
+                    throw "The " + i + "th item's reading is not Hiragana.";
                 }
                 if (!item.hasOwnProperty("meaning")) {
-                    return "The " + i + "th item does not have the 'meaning' field.";
+                    throw "The " + i + "th item does not have the 'meaning' field.";
                 }
             }
-            return "valid";
         }
     }
 
@@ -257,7 +135,7 @@
         return data[randInt(data.length)];
     }
 
-    function newCard(currentItem) {
+    function newCard(data, currentItem) {
         var item = null;
         while (true) {
             item = chooseRandomItem(data);
@@ -269,9 +147,13 @@
         var question;
         var choice = randInt(2);
         if (choice === 0) {
-            question = new ReadingCard(item, gameDiv, null, null, newCard);
+            question = new ReadingCard(item, gameDiv, null, null, function (currentItem) {
+                newCard(data, currentItem);
+            });
         } else {
-            question = new MeaningCard(item, gameDiv, null, null, newCard);
+            question = new MeaningCard(item, gameDiv, null, null, function (currentItem) {
+                newCard(data, currentItem);
+            });
         }
 
         question.run();
@@ -301,7 +183,7 @@
 
             $(window).off("keypress");
         },
-        displayAnswer: function() {
+        displayAnswer: function () {
             // NO-OP
         },
         showAnswer: function () {
@@ -352,13 +234,13 @@
     }
     ReadingCard.prototype = Object.create(Card.prototype);
     ReadingCard.prototype.constructor = ReadingCard;
-    ReadingCard.prototype.displayAnswer = function() {
+    ReadingCard.prototype.displayAnswer = function () {
         var readingButton = $("#readingButton");
         readingButton.html(this.item.reading);
     };
-    ReadingCard.prototype.html = function() {
+    ReadingCard.prototype.html = function () {
         return "<table class='table'>" +
-            "<tr><td colspan='2' id='wordCell'><h1 align='center'>" + this.item.word + "</h1></td></tr>" +
+            "<tr><td colspan='2' id='wordCell' style='border: none'><h1 align='center'>" + this.item.word + "</h1></td></tr>" +
             "<tr><td colspan='2' id='readingCell' style='border: none' align='center'>" +
             "<button style='width: 100%' class='btn btn-default' id='readingButton'>Reading = ???</button>" +
             "</td></tr>" +
@@ -376,13 +258,13 @@
     }
     MeaningCard.prototype = Object.create(Card.prototype);
     MeaningCard.prototype.constructor = MeaningCard;
-    MeaningCard.prototype.displayAnswer = function() {
+    MeaningCard.prototype.displayAnswer = function () {
         var meaningButton = $("#meaningButton");
         meaningButton.html(this.item.meaning);
     };
-    MeaningCard.prototype.html = function() {
+    MeaningCard.prototype.html = function () {
         return "<table class='table'>" +
-            "<tr><td colspan='2' id='wordCell'><h1 align='center'>" + this.item.word + "</h1></td></tr>" +
+            "<tr><td colspan='2' id='wordCell' style='border: none'><h1 align='center'>" + this.item.word + "</h1></td></tr>" +
             "<tr><td colspan='2' id='meaningCell' style='border: none' align='center'>" +
             "<button style='width: 100%' class='btn btn-default' id='meaningButton'>Meaning = ???</button>" +
             "</td></tr>" +
@@ -395,12 +277,39 @@
             "</table>";
     };
 
-    var message = checkDataValidity(data);
-    if (message == "valid") {
-        newCard(null);
-    } else {
-        $("#gameDiv").html(message);
+    function partTsvIntoData(tsv) {
+        var lines = tsv.split("\n");
+        var n = lines.length;
+
+        var i;
+        var data = [];
+        for (i=1;i<n;i++) {
+            var fields = lines[i].trim().split("\t");
+            data.push({
+                "word": fields[0],
+                "reading": fields[1],
+                "meaning": fields[2]
+            })
+        }
+
+        return data;
     }
+
+    function run(tsv) {
+        var data = partTsvIntoData(tsv);
+        try {
+            checkDataValidity(data);
+            newCard(data, null);
+        } catch (errorMessage) {
+            $("#gameDiv").html(errorMessage);
+        }
+    }
+
+    $.ajax({
+        url: "https://docs.google.com/spreadsheets/d/1xL2MosMR-EguiVeQVNqUFANCBu4hBM6UACj-f-AE4sI/pub?output=tsv",
+        dataType: "text",
+        success: run
+    });
 
 </script>
 
