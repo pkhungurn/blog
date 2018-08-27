@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Deep Learning Book: Summary of Chapter 6</title>
+
+    <!-- Bootstrap -->
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/theme.css" rel="stylesheet">
+    <link href="css/jquery-ui.min.css" rel="stylesheet">
+    <link href="css/jquery-ui.theme.min.css" rel="stylesheet">
+    <link href="css/jquery-ui.structure.min.css" rel="stylesheet">    
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- MathJax -->
+    <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+    });
+
+    </script>
+    <script type="text/javascript"
+            src="../MathJax/MathJax.js?config=TeX-AMS_HTML-full">
+    </script>
+</head>
+<body>
+<div class="container">
+    \(
+    \newcommand{\ve}[1]{\mathbf{#1}}
+    \newcommand{\diag}{\mathrm{diag}}
+    \newcommand{\Real}{\mathbb{R}}
+    \newcommand{\tr}{\mathbb{tr}}
+    \DeclareMathOperator*{\argmin}{arg\,min}
+    \DeclareMathOperator*{\argmax}{arg\,max}
+    \)
+
+
+    <h1>Gradient Descent Optimization Algorithms for Deep Learning</h1>
+
+    <p>
+        There are many variants of the gradient descent algorithms used in training of deep neural networks.
+        A list of such algorithms can be found in
+        <a href="http://ruder.io/optimizing-gradient-descent/">Sebastian Ruder's blog post</a>.
+    </p>
+
+    <p>
+        Here, we're going to visualize the actions of these
+        algorithms. We will work with a very simple function: a rotated
+        elliptic paraboloid in 2D:
+        \begin{align*}
+        f(\ve{x}) = \ve{x}^T A \ve{x}
+        \end{align*}
+        where $\ve{x} = (x_0, x_1)^T$ denotes a point in 2D.
+        (Here, $x_0$ corresponds to the $x$-axis, and $x_1$ corresponds to
+        the $y$-axis.) The matrix $A$ is given by:
+        \begin{align*}
+        A =
+        \begin{bmatrix}
+        \cos \theta & -\sin \theta \\
+        \sin \theta & \cos \theta
+        \end{bmatrix}
+        \begin{bmatrix}
+        1/s_0^2 & 0 \\
+        0 & 1/s_1^2
+        \end{bmatrix}
+        \begin{bmatrix}
+        \cos \theta & \sin \theta \\
+        -\sin \theta & \cos \theta
+        \end{bmatrix}.
+        \end{align*}
+        It is designed so that each contour line is an
+        with aspect ratio (= major axis / minor axis) of $s_0/s_1$ rotated
+        by angle $\theta$. The function and the trajectories the algorithms make are visualized below:    
+    </p>
+
+    <div id="arena00"></div>
+
+    <h2>Hints</h2>
+
+    <ul>
+        <li>Left click on the canvas to move the initial values.</li>
+        <li>Use the "Hyperparameters" tab to change the hyperparameters.</li>
+        <li>Hover over the hyperparameter names to learn what it represents. Consult <a href="http://ruder.io/optimizing-gradient-descent/">Sebastian Ruder's blog post</a> for what they actually mean.</li>
+        <li>Look at the source code to the implementation of each algorithm. Tell <a href="http://pkhungurn.github.io/">me</a> if any of them are wrong.</li>        
+    </ul>
+
+    <div class="page-header"></div>
+    <p>Last modified: 2018/08/28</p>
+</div>
+
+<script
+        src="https://unpkg.com/mathjs@5.1.1/dist/math.min.js"
+        type="text/javascript"></script>
+<script src="js/jquery-3.1.1.min.js"></script>
+<script src="js/jquery-ui.min.js"></script>
+<!-- Google Code Prettifier -->
+<!-- <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script> -->
+
+<script>
+    function gradientDescent(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;
+        var eta = settings.eta || 0.01;        
+        
+        var result = [x];
+        var i;
+        for(i=0;i<iterationCount;i++) {
+            var newX = math.subtract(x, math.multiply(eta, gradient(x)));
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function gradientDescentWithMomentum(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;
+        var eta = settings.eta || 0.01;
+        var gamma = settings.gamma || 0.9;
+
+        var result = [x];
+        var momentum = math.matrix([[0.0],[0.0]]);
+        var i;
+        for(i=0;i<iterationCount;i++) {
+            var newGrad = math.multiply(eta, gradient(x));
+            var momentum = math.add(math.multiply(gamma, momentum), newGrad);
+            var newX = math.subtract(x, momentum);
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function gradientDescentWithNesterovMomentum(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;
+        var eta = settings.eta || 0.01;
+        var gamma = settings.gamma || 0.9;
+
+        var result = [x];
+        var momentum = math.matrix([[0.0],[0.0]]);
+        var i;
+        for(i=0;i<iterationCount;i++) {
+            var xx = math.subtract(x, math.multiply(gamma, momentum));
+            var newGrad = math.multiply(eta, gradient(xx));        
+            var momentum = math.add(math.multiply(gamma, momentum), newGrad);
+            var newX = math.subtract(x, momentum);
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function adagrad(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;
+        var eta = settings.eta || 0.01;
+        var epsilon = settings.epsilon || 1e-8;
+        var epsilonVec = math.matrix([[epsilon], [epsilon]]);
+
+        var result = [x];
+        var G = math.matrix([[0.0],[0.0]]);
+        var i;
+        for(i=0;i<iterationCount;i++) {
+            var grad = gradient(x);
+            var grad2 = math.dotMultiply(grad,grad);
+            var G = math.add(G, grad2);
+            var rootG = math.sqrt(math.add(G, epsilonVec));
+            var update = math.multiply(eta, math.dotDivide(grad,rootG));
+            var newX = math.subtract(x, update);            
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function adadelta(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;        
+        var eta = settings.eta || 0.01;
+        var gamma = settings.gamma || 0.9;
+        var epsilon = settings.epsilon || 1e-8;
+        var epsilonVec = math.matrix([[epsilon], [epsilon]]);
+
+        var result = [x];
+        var G = math.matrix([[0.0],[0.0]]);
+        var Delta = math.matrix([[0.0], [0.0]]);        
+        var i;
+        for(i=0;i<iterationCount;i++) {
+            var grad = gradient(x);
+            var grad2 = math.dotMultiply(grad,grad);
+            var G = math.add(math.multiply(gamma,G), math.multiply(1.0-gamma,grad2));
+            var rootG = math.sqrt(math.add(G, epsilonVec));        
+            var update;
+            if (i == 0) {
+                update = math.multiply(eta, math.dotDivide(grad, rootG));
+            } else {
+                var rootDelta = math.sqrt(math.add(Delta, epsilonVec));
+                update = math.dotMultiply(math.dotDivide(rootDelta, rootG), grad);
+            }            
+            var newX = math.subtract(x, update);            
+            result.push(newX);
+            x = newX;
+            var update2 = math.dotMultiply(update, update);
+            Delta = math.add(math.multiply(gamma,Delta), math.multiply(1.0-gamma,update2));
+        }
+        return result;
+    }
+
+    function rmsprop(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;        
+        var eta = settings.eta || 0.01;
+        var gamma = settings.gamma || 0.9;
+        var epsilon = settings.epsilon || 1e-8;
+        var epsilonVec = math.matrix([[epsilon], [epsilon]]);
+
+        var result = [x];
+        var G = math.matrix([[0.0],[0.0]]);        
+        var i;
+        for(i=0;i<iterationCount;i++) {
+            var grad = gradient(x);
+            var grad2 = math.dotMultiply(grad,grad);
+            var G = math.add(math.multiply(gamma,G), math.multiply(1.0-gamma,grad2));
+            var rootG = math.sqrt(math.add(G, epsilonVec));        
+            var update = math.multiply(eta, math.dotDivide(grad, rootG));
+            var newX = math.subtract(x, update);            
+            result.push(newX);
+            x = newX;            
+        }
+        return result;
+    }
+
+    function adam(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;        
+        var eta = settings.eta || 0.01;
+        var beta1 = settings.beta1 || 0.9;
+        var beta2 = settings.beta2 || 0.999;
+        var epsilon = settings.epsilon || 1e-8;
+        var epsilonVec = math.matrix([[epsilon], [epsilon]]);
+
+        var result = [x];
+        var m = math.matrix([[0.0], [0.0]]);
+        var v = math.matrix([[0.0], [0.0]]);
+        var t;
+        for(t=1;t<=iterationCount;t++) {            
+            var grad = gradient(x);
+            var grad2 = math.dotMultiply(grad,grad);
+            m = math.add(math.multiply(beta1,m), math.multiply(1-beta1,grad));
+            v = math.add(math.multiply(beta2,v), math.multiply(1-beta2,grad2));
+            var mhat = math.divide(m, 1-Math.pow(beta1,t));
+            var vhat = math.divide(v, 1-Math.pow(beta2,t));
+
+            var update = math.multiply(eta, math.dotDivide(mhat, math.add(epsilonVec, math.sqrt(vhat))));
+            var newX = math.subtract(x, update); 
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function adaMax(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;        
+        var eta = settings.eta || 0.01;
+        var beta1 = settings.beta1 || 0.9;
+        var beta2 = settings.beta2 || 0.999;
+        var epsilon = settings.epsilon || 1e-8;
+        var epsilonVec = math.matrix([[epsilon], [epsilon]]);
+
+        var result = [x];
+        var m = math.matrix([[0.0], [0.0]]);
+        var v = math.matrix([[0.0], [0.0]]);
+        var t;
+        for(t=1;t<=iterationCount;t++) {            
+            var grad = gradient(x);                        
+            m = math.add(math.multiply(beta1,m), math.multiply(1-beta1,grad));
+            
+            var gradX0 = grad.subset(math.index(0,0));
+            var gradX1 = grad.subset(math.index(1,0));
+            var vX0 = v.subset(math.index(0,0));
+            var vX1 = v.subset(math.index(1,0));
+            v = math.matrix([[Math.max(beta2*vX0,Math.abs(gradX0))],[Math.max(beta2*vX1,Math.abs(gradX1))]]);
+
+            var mhat = math.divide(m, 1-Math.pow(beta1,t));
+            
+            var update = math.multiply(eta, math.dotDivide(mhat, v));
+            var newX = math.subtract(x, update); 
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function nadam(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;        
+        var eta = settings.eta || 0.01;
+        var beta1 = settings.beta1 || 0.9;
+        var beta2 = settings.beta2 || 0.999;
+        var epsilon = settings.epsilon || 1e-8;
+        var epsilonVec = math.matrix([[epsilon], [epsilon]]);
+
+        var result = [x];
+        var m = math.matrix([[0.0], [0.0]]);
+        var v = math.matrix([[0.0], [0.0]]);
+        var t;
+        for(t=1;t<=iterationCount;t++) {            
+            var grad = gradient(x);
+            var grad2 = math.dotMultiply(grad,grad);
+            m = math.add(math.multiply(beta1,m), math.multiply(1-beta1,grad));
+            v = math.add(math.multiply(beta2,v), math.multiply(1-beta2,grad2));
+            var mhat = math.divide(m, 1-Math.pow(beta1,t));
+            var vhat = math.divide(v, 1-Math.pow(beta2,t));
+
+            var mUpdate = math.add(math.multiply(beta1, mhat), math.multiply((1-beta1)/(1-Math.pow(beta1,t)), grad));
+            var update = math.multiply(eta, math.dotDivide(mUpdate, math.add(epsilonVec, math.sqrt(vhat))));
+
+            var newX = math.subtract(x, update); 
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function amsGrad(settings) {
+        // Required fields.        
+        var gradient = settings.gradient;
+        var x = settings.initialValue;        
+        // Optional fields.
+        var iterationCount = settings.iterationCount || 100;        
+        var eta = settings.eta || 0.01;
+        var beta1 = settings.beta1 || 0.9;
+        var beta2 = settings.beta2 || 0.999;
+        var epsilon = settings.epsilon || 1e-8;
+        var epsilonVec = math.matrix([[epsilon], [epsilon]]);
+
+        var result = [x];
+        var m = math.matrix([[0.0], [0.0]]);
+        var v = math.matrix([[0.0], [0.0]]);
+        var vhat = math.matrix([[0.0], [0.0]]);
+        var t;
+        for(t=1;t<=iterationCount;t++) {            
+            var grad = gradient(x);
+            var grad2 = math.dotMultiply(grad,grad);
+            m = math.add(math.multiply(beta1,m), math.multiply(1-beta1,grad));
+            v = math.add(math.multiply(beta2,v), math.multiply(1-beta2,grad2));
+            var mhat = math.divide(m, 1-Math.pow(beta1,t));
+            
+            var vhatX0 = getX(vhat);
+            var vhatX1 = getY(vhat);
+            var vX0 = getX(v);
+            var vX1 = getY(v);
+            vhat = math.matrix([[Math.max(vhatX0, vX0)],[Math.max(vhatX1, vX1)]]);            
+
+            var update = math.multiply(eta, math.dotDivide(mhat, math.add(epsilonVec, math.sqrt(vhat))));
+            var newX = math.subtract(x, update); 
+            result.push(newX);
+            x = newX;
+        }
+        return result;
+    }
+
+    function getX(v) {
+        return v.subset(math.index(0,0));
+    }
+
+    function  getY(v) {
+        return v.subset(math.index(1,0));
+    }
+
+    class Arena {    
+        constructor(elementName, settings) {
+            this.elementName = elementName;
+            this.canvasWidth = settings.canvasWidth || 640;
+            this.canvasHeight = settings.canvasHeight || 480;
+            this.countourVertexCount = 256;
+
+            this.s0 = settings.s0 || 30.0;
+            this.s1 = settings.s1 || 10.0;
+            this.theta = (settings.theta || 15.0) * Math.PI / 180.0;
+            this.centerX0 = settings.centerX0 || 0;
+            this.centerX1 = settings.centerX1 || 0;
+
+            this.initialValue = settings.initialValue || math.matrix([[-300],[-200]]);
+            this.iterationCount = settings.iterationCount || 100;
+            this.eta = settings.eta || 10;
+            this.gamma = settings.gamma || 0.9;
+            this.beta1 = settings.beta1 || 0.9;
+            this.beta2 = settings.beta2 || 0.950;
+
+            this.isMovingInitialValue = false;
+
+            this.algos = [
+                "gradientDescent",
+                "momentum",
+                "nesterov",
+                "adagrad",
+                "adadelta",
+                "rmsprop",
+                "adam",
+                "adaMax",
+                "nadam",
+                "amsGrad"
+            ];            
+
+            this.algoColor = {
+                "gradientDescent": [255,0,0],
+                "momentum": [0,192,0],
+                "nesterov": [0,0,192],
+                "adagrad": [192,192,0],
+                "adadelta": [192,0,192],
+                "rmsprop": [0,192,192],
+                "adam": [192, 96, 0],
+                "adaMax": [192, 0, 96],
+                "nadam": [0, 128, 128],
+                "amsGrad": [105, 105, 105]
+            };
+
+            this.algoNameText = {
+                "gradientDescent": "Gradient Descent (GD)",
+                "momentum": "Gradient Descent with Momentum (Mo)",
+                "nesterov": "Gradient Descent with Nesterov Momentum (Ne)",
+                "adagrad": "Adagrad (Ag)",
+                "adadelta": "Adadelta (Ad)",
+                "rmsprop": "RMSprop (Rp)",
+                "adam": "Adam",
+                "adaMax": "AdaMax (Ax)",
+                "nadam": "Nadam (Na)",
+                "amsGrad": "AMSGrad (Am)"
+            }
+
+            this.algoFunc = {
+                "gradientDescent": gradientDescent,
+                "momentum": gradientDescentWithMomentum,
+                "nesterov": gradientDescentWithNesterovMomentum,
+                "adagrad": adagrad,
+                "adadelta": adadelta,
+                "rmsprop": rmsprop,
+                "adam": adam,
+                "adaMax": adaMax,
+                "nadam": nadam,
+                "amsGrad": amsGrad
+            }
+            
+            const self = this;
+            this.algos.forEach(function(algo) {
+                self[algo + "Enabled"] = settings[algo + "Enabled"] || true;
+            });
+                        
+            this.contourColors = [
+                [  0,  0,  0],
+                [ 20, 20, 40],
+                [ 40, 40, 80],
+                [ 60, 60,120],
+                [ 80, 80,160],
+                [100,100,200],                
+                [ 80, 80,160],
+                [ 60, 60,120],
+                [ 40, 40, 80],
+                [ 20, 20, 40],
+            ];
+        }
+
+        init() {
+            this.updateMatrices();
+            this.initArena();
+        }
+
+        updateMatrices() {            
+            this.rotMat = math.matrix([
+                [Math.cos(this.theta), -Math.sin(this.theta)],
+                [Math.sin(this.theta),  Math.cos(this.theta)]
+            ]);            
+            this.scaleMat = math.matrix([
+                [1.0/this.s0, 0],
+                [0, 1.0/this.s1]
+            ]);
+            this.mat = math.chain(this.rotMat)
+                .multiply(this.scaleMat)
+                .multiply(this.scaleMat)
+                .multiply(math.transpose(this.rotMat))
+                .done();
+        }
+
+        initArena() {
+            const self = this;
+
+            this.element = $("#" + this.elementName);
+            this.canvasName = this.elementName + "_canvas";
+            
+            this.tabsName = this.elementName + "_tabs";
+            this.cursorInfoTabName = this.elementName + "_cursor_info_tab";
+            this.funcParamsTabName = this.elementName + "_func_params_tab";
+            this.hyperparamsTabName = this.elementName + "_hyperparams_tab";
+            this.algorithmsTabName = this.elementName + "_algorithms_tab";
+            
+            this.x0ValueName = this.elementName + "_x0_value";
+            this.x1ValueName = this.elementName + "_x1_value";
+            this.funcValueName = this.elementName + "_func_value";
+            
+            this.s0InputName = this.elementName + "_s0_input";
+            this.s1InputName = this.elementName + "_s1_input";
+            this.thetaInputName = this.elementName + "_theta_input";
+            this.x0ShiftInputName = this.elementName + "_x0_shift_input";
+            this.x1ShiftInputName = this.elementName + "_x1_shift_input";
+
+            this.iterationCountInputName = this.elementName + "_iteration_count_input";
+            this.initialX0InputName = this.elementName + "_initial_x0_input";
+            this.initialX1InputName = this.elementName + "_initial_x1_input";
+            this.etaInputName = this.elementName + "_eta_input";
+            this.etaValueName = this.elementName + "_eta_value";
+            this.gammaInputName = this.elementName + "_gamma_input";
+            this.beta1InputName = this.beta1Name + "_beta1_input";
+            this.beta2inputName = this.beta2Name + "_beta2_input";
+
+            this.algos.forEach(function(algo) {
+                self[algo + "EnabledInputName"] = self.elementName + "_" + algo + "_enabled";
+            });
+        
+            var algoEnabledInputString = "";
+            this.algos.forEach(function(algo) {
+                algoEnabledInputString += 
+                    "<input type='checkbox' id='" + 
+                    self[algo + "EnabledInputName"] + "' " + 
+                    (self[algo + "Enabled"] ? "checked" : "") + "> " + 
+                    self.algoNameText[algo] + 
+                    " <span style='color:rgb(" + self.algoColor[algo][0].toString() + "," + self.algoColor[algo][1].toString() + "," + self.algoColor[algo][2].toString() + ")'><b>----------</b></span>" + 
+                    "</input><br/>";
+            });            
+            
+            var htmlString = 
+                "<div class='container-fluid'>" +
+                    "<div class='row justify-content-md-center'>" +
+                        "<div class='col-md-12' align='center'>" +                             
+                            "<canvas id='" + this.canvasName + "' " + 
+                                "width='" + this.canvasWidth.toString() + "' " +
+                                "height='" + this.canvasHeight.toString() + "'>" +                             
+                            "</center>" +
+                        "</div>" +
+                    "</div>" +
+                    "<div class='row justify-content-md-center'>" +
+                        "<div class='col-md-12'>" +                            
+                            "<div id='" + this.tabsName + "'>" +
+                            "<ul>" +
+                                "<li><a href='#" + this.cursorInfoTabName + "'>Cursor</a></li>" +
+                                "<li><a href='#" + this.funcParamsTabName + "'>Function</a></li>" +
+                                "<li><a href='#" + this.hyperparamsTabName + "'>Hyperparameters</a></li>" +
+                                "<li><a href='#" + this.algorithmsTabName + "'>Algorithms</a></li>" +
+                            "</ul>" +
+                            "<div id='" + this.cursorInfoTabName + "'>" +
+                            "<table class='table table-bordered'>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'>x<sub>0</sub></td>" +
+                                    "<td id='" + this.x0ValueName + "'>N/A</td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right'>x<sub>1</sub></td>" +
+                                    "<td id='" + this.x1ValueName + "'>N/A</td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right'>f(<b>x</b>)</td>" +
+                                    "<td id='" + this.funcValueName + "'>N/A</td>" +
+                                "</tr>" +
+                            "</table>" +
+                            "</div>" +
+                            "<div id='" + this.funcParamsTabName + "'>" +
+                            "<table class='table table-bordered'>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'>s<sub>0</sub></td>" +
+                                    "<td><input type='text' id='" + this.s0InputName + "' value='" + this.s0.toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right'>s<sub>1</sub></td>" +
+                                    "<td><input type='text' id='" + this.s1InputName + "' value='" + this.s1.toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right'>θ</td>" +
+                                    "<td><input type='text' id='" + this.thetaInputName + "' value='" + (this.theta / Math.PI * 180.0).toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right'>x<sub>0</sub> shift</td>" +
+                                    "<td><input type='text' id='" + this.x0ShiftInputName + "' value='" + this.centerX0.toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right'>x<sub>1</sub> shift</td>" +
+                                    "<td><input type='text' id='" + this.x1ShiftInputName + "' value='" + this.centerX1.toString() + "'></td>" +
+                                "</tr>" +                                
+                            "</table>" +
+                            "</div>" +
+                            "<div id='" + this.hyperparamsTabName + "'>" +
+                            "<table class='table table-bordered'>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'>Iterations</td>" +
+                                    "<td colspan='2'><input type='text' id='" + this.iterationCountInputName + "' value='" + this.iterationCount.toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'>Initial x<sub>0</sub></td>" +
+                                    "<td colspan='2'><input type='text' id='" + this.initialX0InputName + "' value='" + getX(this.initialValue).toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'>Initial x<sub>1</sub></td>" +
+                                    "<td colspan='2'><input type='text' id='" + this.initialX1InputName + "' value='" + getY(this.initialValue).toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right'><a href='#' title='the learning rate'>η</a></td>" +
+                                    "<td width='100' align='right' id='" + this.etaValueName + "'>" + this.eta.toString() + "</td>" +
+                                    "<td><div id='" + this.etaInputName + "'></div></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'><a href='#' title='decay parameter for gradient and squred gradient (Gd,Mo,Ne,Ad,Rp)'>𝛾</a></sub></td>" +
+                                    "<td colspan='2'><input type='text' id='" + this.gammaInputName + "' value='" + this.gamma.toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'><a href='#' title='decay parameter for gradients (Adam,Ax,Na,Am)'>β<sub>1</sub></a></sub></td>" +
+                                    "<td colspan='2'><input type='text' id='" + this.beta1InputName + "' value='" + this.beta1.toString() + "'></td>" +
+                                "</tr>" +
+                                "<tr>" +
+                                    "<td align='right' width='100'><a href='#' title='decay parameter for squared gradients (Adam,Ax,Na,Am)'>β<sub>2</sub></a></sub></td>" +
+                                    "<td colspan='2'><input type='text' id='" + this.beta2InputName + "' value='" + this.beta2.toString() + "'></td>" +
+                                "</tr>" +
+                            "</table>" +
+                            "</div>" +
+                            "<div id='" + this.algorithmsTabName + "'>" +
+                                algoEnabledInputString +                                
+                            "</div>" +
+                            "</div>" +
+                        "</div>" +                
+                    "</div>" +
+                "</div>"
+            this.element.html(htmlString);
+
+            $(document).tooltip();
+
+            this.x0Value = $("#" + this.x0ValueName);
+            this.x1Value = $("#" + this.x1ValueName);
+            this.funcValue = $("#" + this.funcValueName);
+
+            $("#" + this.tabsName).tabs({
+                active: 3
+            });
+            
+            this.s0Input = $("#" + this.s0InputName).spinner({
+                min: 1.0,
+                max: 200.0,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.s1Input = $("#" + this.s1InputName).spinner({
+                min: 1.0,
+                max: 200.0,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.thetaInput = $("#" + this.thetaInputName).spinner({
+                min: 0.0,
+                max: 359.0,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.x0ShiftInput = $("#" + this.x0ShiftInputName).spinner({
+                min: -500,
+                max: 500,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.x1ShiftInput = $("#" + this.x1ShiftInputName).spinner({
+                min: -500,
+                max: 500,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.iterationCountInput = $("#" + this.iterationCountInputName).spinner({
+                min: 1,
+                max: 10000,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.initialX0Input = $("#" + this.initialX0InputName).spinner({
+                min: -500,
+                max: 500,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.initialX1Input = $("#" + this.initialX1InputName).spinner({
+                min: -500,
+                max: 500,
+                step: 1.0,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.etaInput = $("#" + this.etaInputName).slider({
+                min: -3,
+                max: 3,
+                step: 0.01,
+                value: Math.log10(this.eta),
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                slide: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.etaValue = $("#" + this.etaValueName);
+            this.gammaInput = $("#" + this.gammaInputName).spinner({
+                min: 0.01,
+                max: 0.99,
+                step: 0.01,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.beta1Input = $("#" + this.beta1InputName).spinner({
+                min: 0.001,
+                max: 0.999,
+                step: 0.001,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+            this.beta2Input = $("#" + this.beta2InputName).spinner({
+                min: 0.001,
+                max: 0.999,
+                step: 0.001,
+                change: function(event, ui) {
+                    self.updateParameters();
+                },
+                spin: function(event, ui) {
+                    self.updateParameters();
+                }
+            });
+
+            this.algos.forEach(function(algo) {
+                self[algo + "EnabledInput"] = $("#" + self[algo + "EnabledInputName"]);
+                self[algo + "EnabledInput"].change(function() {
+                    self.updateParameters();
+                })
+            });
+                        
+            this.canvas = $("#" + this.canvasName);
+            this.ctx = this.canvas[0].getContext("2d");
+
+            this.canvas.mousemove(function(event) {
+                self.mouseMove(event);
+            });
+            this.canvas.mouseleave(function(event) {
+                self.moveLeave(event);
+            });
+            this.canvas.mousedown(function(event) {
+                self.mouseDown(event);
+            });
+            this.canvas.mouseup(function(event) {
+                self.mouseUp(event);
+            })            
+                        
+            this.updateTrajectories();
+            this.updateCanvas();
+        }
+
+        updateParameters() {
+            const self = this;
+
+            this.s0 = this.s0Input.spinner("value");
+            this.s1 = this.s1Input.spinner("value");
+            this.theta = this.thetaInput.spinner("value") * Math.PI / 180.0;
+            this.centerX0 = -this.x0ShiftInput.spinner("value");
+            this.centerX1 = -this.x1ShiftInput.spinner("value");
+
+            this.iterationCount = Math.round(this.iterationCountInput.spinner("value"));
+            var initialX0 = this.initialX0Input.spinner("value");
+            var initialX1 = this.initialX1Input.spinner("value");
+            this.initialValue = math.matrix([[initialX0],[initialX1]]);
+            this.eta = Math.pow(10, this.etaInput.slider("value"));
+            this.etaValue.html(this.eta.toFixed(3));
+            this.gamma = this.gammaInput.spinner("value");
+            this.beta1 = this.beta1Input.spinner("value");
+            this.beta2 = this.beta2Input.spinner("value");            
+
+            this.algos.forEach(function(algo) {
+                self[algo + "Enabled"] = self[algo + "EnabledInput"].prop("checked");
+            });
+            
+            this.updateMatrices();
+            this.updateTrajectories();
+            this.updateCanvas();
+        }
+
+        updateTrajectories() {
+            const self = this;
+            
+            this.algos.forEach(function(algo) {
+                if (self[algo + "Enabled"]) {
+                    self[algo + "Points"] = self.algoFunc[algo]({
+                        initialValue: self.initialValue,
+                        iterationCount: self.iterationCount,
+                        eta: self.eta,
+                        gamma: self.gamma,
+                        beta1: self.beta1,
+                        beta2: self.beta2,
+                        gradient: function(x) {
+                            return self.gradient(x);
+                        }
+                    });
+                }
+            });
+        }
+
+        mouseMove(event) {
+            this.updateCursorInfo(event);
+            if (this.isMovingInitialValue) {
+                this.updateInitialValue(event);
+            }
+        }
+
+        getX0X1FromMouseEvent(event) {
+            var clientRect = this.canvas[0].getBoundingClientRect();
+            var x0 = event.clientX - clientRect.left - this.canvasWidth / 2.0 + this.centerX0;
+            var x1 = clientRect.bottom - event.clientY - this.canvasHeight / 2.0 + this.centerX1;
+            return {
+                x0: x0,
+                x1: x1
+            };
+        }
+
+        updateCursorInfo(event) {
+            var point = this.getX0X1FromMouseEvent(event);            
+            this.x0Value.html(point.x0.toString());
+            this.x1Value.html(point.x1.toString());
+            var f = this.eval(math.matrix([[point.x0],[point.x1]]));
+            this.funcValue.html(f.toString());
+        }
+
+        moveLeave(event) {
+            this.clearCursorInfo();
+        }
+
+        clearCursorInfo() {
+            this.x0Value.html("N/A");
+            this.x1Value.html("N/A");
+            this.funcValue.html("N/A");
+        }
+
+        mouseDown(event) {            
+            if (event.button == 0) {
+                this.isMovingInitialValue = true;
+                this.updateInitialValue(event);
+            }
+        }
+        
+        updateInitialValue(event) {
+            var point = this.getX0X1FromMouseEvent(event);            
+            this.initialX0Input.spinner("value", point.x0);
+            this.initialX1Input.spinner("value", point.x1);
+        }
+
+        mouseUp(event) {
+            this.isMovingInitialValue = false;
+        }
+
+        updateCanvas() {
+            const self = this;
+            this.runInCanonicalCoord(function() {
+                self.ctx.save();
+                self.ctx.fillStyle = "rgb(240,240,240)";
+                self.ctx.beginPath();                
+                var w = self.canvasWidth;
+                var h = self.canvasHeight;
+                self.ctx.rect(-1000, -1000, 2000, 2000);
+                self.ctx.fill();
+                self.ctx.restore();
+
+                var i;
+                for(i=0;i<10;i++) {
+                    self.ctx.save();
+                    self.ctx.strokeStyle = "#aaaaaa";
+                    self.ctx.lineWidth = 0.5;
+                    self.ctx.beginPath();
+                    self.ctx.moveTo(-1000,i*100);
+                    self.ctx.lineTo( 1000,i*100);
+                    self.ctx.moveTo(-1000,-i*100);
+                    self.ctx.lineTo( 1000,-i*100);
+                    self.ctx.moveTo(i*100,1000);
+                    self.ctx.lineTo(i*100,-1000);
+                    self.ctx.moveTo(-i*100,1000);
+                    self.ctx.lineTo(-i*100,-1000);
+                    self.ctx.stroke();
+                    self.ctx.restore();
+                }
+
+                var j;
+                for(j=0;j<50;j++) {
+                    i = j*2+1;                    
+                    self.ctx.save();
+                    var value = 0 + 220.0*i/100;
+                    var color = self.contourColors[j%10];
+                    self.ctx.strokeStyle = "rgb(" + color[0].toString() + "," + color[1].toString() + "," + color[2].toString() + ")";                    
+                    self.drawContourLine(i*i);
+                    self.ctx.restore();
+                }
+
+                self.algos.forEach(function(algo) {
+                    if (self[algo + "Enabled"]) {
+                        self.drawTrajectory(self[algo + "Points"], self.algoColor[algo]);
+                    }
+                });
+            });        
+        }        
+
+        drawTrajectory(points, color) {
+            this.ctx.save();
+            var rgb = "rgb(" 
+                + color[0].toString() + "," 
+                + color[1].toString() + "," 
+                + color[2].toString() + ")";
+            this.ctx.strokeStyle = rgb;
+            this.ctx.fillStyle = rgb;
+            
+            var i;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(getX(points[0]), getY(points[0]));            
+            for(i=1;i<points.length;i++) {                
+                this.ctx.lineTo(getX(points[i]), getY(points[i]));
+            }
+            this.ctx.stroke();
+                        
+            for(i=0;i<points.length;i++) {
+                this.ctx.beginPath();
+                this.ctx.arc(getX(points[i]), getY(points[i]), 2, 0, 2*Math.PI, true);
+                this.ctx.fill();
+            }
+
+            this.ctx.restore();
+        }
+
+        eval(x) {
+            var resultMat = 
+                math.chain(math.transpose(x))
+                    .multiply(this.mat)                    
+                    .multiply(x)
+                    .done();
+            return resultMat.subset(math.index(0,0));
+        }
+
+        gradient(x) {
+            return math.multiply(math.add(this.mat, math.transpose(this.mat)), x);
+        }
+
+        runInCanonicalCoord(code) {
+            this.ctx.save();            
+            this.ctx.translate(0,this.canvasHeight);
+            this.ctx.scale(1,-1);
+            this.ctx.translate(this.canvasWidth/2.0, this.canvasHeight/2.0);
+            this.ctx.translate(-this.centerX0, -this.centerX1);
+            code();
+            this.ctx.restore();
+        }
+
+        drawContourLine(value) {
+            this.ctx.save();
+            
+            var rootValue = Math.sqrt(value);
+            this.ctx.lineWidth = 1.0;            
+            this.ctx.rotate(this.theta);
+            
+            this.ctx.beginPath();
+            var i;
+            for(i=0;i<this.countourVertexCount;i++) {
+                var phi = 2*Math.PI*i*1.0 /this.countourVertexCount;
+                var x = this.s0 * rootValue * Math.cos(phi);
+                var y = this.s1 * rootValue * Math.sin(phi);
+                if (i == 0) {
+                    this.ctx.moveTo(x,y);
+                } else {
+                    this.ctx.lineTo(x,y);
+                }
+            }
+            this.ctx.closePath();
+            this.ctx.stroke();            
+            
+            this.ctx.restore();
+        }
+    }
+
+    var arena00 = new Arena("arena00", {});
+    arena00.init();    
+
+</script>
+</body>
+</html>
