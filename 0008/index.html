@@ -49,27 +49,137 @@
 
     <p>
         While MMD has made great impact to the Japanese 3D animation community, its closed-source nature seems to limit the usefulness
-        of the software itself and its associated data, especially to a programmer: it is hard to develop tools that work with MMD data
-        if we don't know how exactly the software works. This is not to say that there's a lack of tools to manipulate the data. 
+        of the software itself and its associated data. This is not to say that there's a lack of tools to manipulate the data. 
         There are MMD-compatible close-sourced danimation authoring tools such as <a href="https://sites.google.com/site/mikumikumoving/">MikuMikuMoving</a>
         and <a href="https://nanoem.readthedocs.io/ja/latest/">nanoem</a>. There are also open source viewers and libraries such as
-        <a href="https://github.com/newpolaris/Mikudayo">Mikudayo</a>, <a href="https://github.com/benikabocha/saba">saba</a>, 
+        <a href="https://github.com/DTXMania/MikuMikuFlex">MikuMikuFlex</a>, <a href="https://github.com/newpolaris/Mikudayo">Mikudayo</a>, 
+        <a href="https://github.com/benikabocha/saba">saba</a>, and <a href="https://github.com/takahirox/mmd-viewer-js">mmd-viewer-js</a>. 
+        Data exporters to other platforms and formats such as <a href="https://mmd-for-unity-proj.github.io/mmd-for-unity/">Unity</a>, 
+        <a href="http://stereoarts.jp/">FBX</a>, and <a href="https://github.com/sugiany/blender_mmd_tools">Blender</a> exist, and a variety of other 
+        tools are listed at the <a href="https://www6.atwiki.jp/vpvpwiki">VPVP Wiki</a>. What I feel is lacking, however, is conceptual understanding the software. 
+        As a programmer, it is hard to develop novel tools that work with MMD data if we don't understand how the software works. This article aims to address
+        this problem.
     </p>
 
     <p>
-        As a programmer who is fascinated by the available MMD data, I have been struggling for a long time to develop tools to use them.
-        Recently, I felt that I have succeeded in producing animatated mesh that are close to the MMD's output. As a result, I would like
-        to share the algorithm that I used so that other people might be able to do the same.
+        I have been struggling for a long time to develop tools to use MMD data. Recently, I felt that I have succeeded in producing animatated mesh that are close to the original software output. As a result, I would like to share the knowledge that I have gained so that other people might be able to do the same. In this article, I describe how to compute the shape of an animated MMD model. This is the process that couples character models, stored in PMD/PMX files, to motions stored, in VMD files, to produce a dancing character. Clearly, this process is the core of MMD's functionality. Unfortunately, though, I have never seen it clearly documented anywhere.
     </p>
 
+
     <p>
-        This article documents how to compute the mesh of an MMD character, specified mainly under the PMX format, under the motion or pose
-        specified in VMD or VPD formats, respectively.
+        <b>Disclaimer.</b> The algorithms and formulas described in this article are by no means the same as or compatible with the ones in the 
+        original software. They are also not my original work as I based my implementation on MikuMikuFlex, an MMD library for the .Net Framework.
     </p>
     
+    <h2>Terminology</h2>
+
+    <p>
+        Before we can start talking about how to MikuMikuDance animation works, we need to establish some common terms that will be used throughout the article.
+    </p>
+
+    <p>
+        A <b>model</b> is a collection of data that describes a shape that can be animated. In MMD, a model is stored in a file with <tt>.pmd</tt> or <tt>.pmx</tt> extension. (We refer to such a file as the PMD file or the PMX file, based on the extension.) A model is typically a humanoid character, but it can also be a scene prop or the stage itself. This article, however, focuses on animating humanoid characters with 2 legs.
+    </p>
+
+    <p>
+        A <b>pose</b> is a configuration of how different parts of a model are positioned relative to one another. A pose of an MMD model is specified by a collection of numbers which we will describe in more details later. A pose can be saved in a file with extension <tt>.vpd</tt> (VPD file).
+    </p>
+
+    <p>
+        The pose of a model when you first load it from a file is called the <b>binding pose</b>. This is the pose that the model is in when an MMD user does not specify anything. For a humanoid character, this is the pose of the character standing straight with the arms extended to the side but angled downward.        
+    </p>
+
+    <center><b>TODO: Insert a picture of a character in binding pose.</b></center>
+    
+    <p>
+        A <b>motion</b> is a continuous sequence of poses through time. Typically, a motion is stored in a file with <tt>.vmd</tt> extension (VMD file). However, the data stored this way is not complete. A typical VMD motion only specifies where the ankles are but not how the leg and knee joints bend. Moreover, movement
+        of parts such as hair and cloth are controlled by physical simulation, and MMD do not save such movement in VMD files. One of the aims of this article is to describe how to complete the missing data in VMD files so that we can have watch a fully animated model.
+    </p>
+
+    <h2>Posing a Model</h2>
+
+    <p>
+        Let us now dig deeper on how an MMD model and its pose are specified. As typical of models for real-time computer graphics, an MMD model is a <a href="https://en.wikipedia.org/wiki/Triangle_mesh">triangle mesh</a>. It consists of a set of 3D points, called <b>vertices</b>, and triangles formed by connecting combinations of 3 of these points. A vertex has many attributes, including its <i>3D position</i> and <i>normal vector</i> (aka "normal"). The data in a PMD/PMX file specify the positions and normals for when the model is in the binding pose. When a model is animated, positions and normals change while other attributes remain the same. The main aim of this article is to describe how to compute the changing positions and normals.
+    </p>
+
+    <p>
+        To ease later algorithmic discussion later, let us now define some mathmatical notations. Let:
+    </p>
+
+    <ul>
+        <li>$\ve{p}_i^{bd}$ denote the 3D position of the $i$th vertex in the binding pose</li>
+        <li>$\ve{n}_i^{bd}$ denote the normal vector of the $i$th vertex in the binding pose.</li>
+    </ul>
+
+    <p>
+        In the above definitions, the index variable $i$ ranges from $0$ to $n_{vert}-1$, where $n_{vert}$ is the number of vertices the model has. For brevity, we will refer to vertex positions and normals in the binding pose as "binding positions" and "binding normals," respectively.
+    </p>
+
+    <p>
+        In MMD, vertices can change through two mechanisms: <b>morphing</b> and <b>skinning</b>.
+    </p>
+
+    <h3>Morphing</h3>
+
+    <p>
+        An MMD model comes with a set of <i>morphs</i>. A <b>morph</b> is a predefined change some parts of a model. Each morph has an associated number that varies from $0$ to $1$ called its <b>weight</b>. When the weight is $0$, the morph is completely inactive, and its change is not imposed on the model. When the weight is $1$, the morph is fully active, and its change is in full effect. By default, the weight is $0$.
+    </p>
+
+    <p>
+        The PMD file format supports one morph type, but the PMX file format supports five. This article only discusses the morph type supported by both: the <b>vertex morphs.</b> As the name indicates, the vertex morph modifies vertex positions. Vertex morphs are mainly used to implement facial expressions. A typical MMD character model would contain vertex morphs that make the character wink and open its mouth as if to pronounce the five Japanese vowels.
+    </p>
+
+    <p>
+        Mathematically, let us say that a model has $n_{vm}$ vertex morphs. The $j$th morph specifies, for each vertex $i$, the displacement vector $\ve{d}_{ji}$ that is added to the binding position if the morph is in full effect. A pose must specify a weight $w_j^{vm}$ for each morph. With these data in place, the position of the $i$ vertex after morphing, denoted by $\ve{p}^{vm}_i$, is given by:
+        $$ \ve{p}_i^{vm} = \ve{p}_i^{bd} + \sum_{0 \leq j < n_{vm}} w_j^{vm} \ve{d}_{ji}.$$ Note that normal vectors are not changed by morphing.
+    </p>
+
+    <p>
+        In practice, the displacement vectors are zero for most vertices. So, MMD only stores non-zero vectors in the PMD/PMX files. Moreover, if a morph's weight is not specified in a VPD or VMD file, its weight is zero by default.
+    </p>
+
+    <h3>Skinning</h3>
+
+    <p>        
+        MMD is a <a href="https://en.wikipedia.org/wiki/Skeletal_animation">skeletal animation</a> system. In addition to the aforementioned triangle mesh, a MMD model has a <b>skeleton</b>: a stick figure that abstracts the positions of mesh parts relative to one another. A skeleton contains a number of points, called <b>bones</b>, each of which can influence a particular subset of vertices. <b>Skinning</b> is the process of incorporating the influence of bones into vertex positions and normals. It is carried out <i>after</i> morphing.
+    </p>
+    
+    <p>
+        To skin a mesh, MMD performs a sequence of complex calculations to compute a linear transformation (i.e., a $4 \times 4$ matrix) associated with each bone. (Don't worry. We will discuss the complex calculations in details later.) Let us call these transformations the <b>skinning transformations.</b> Let us denote the skinning tranformation of the $k$th bone with $M_k^{sk}$.
+    </p>
+
+    <p>
+        In MMD, a skinning transformation is a rotation followed by a translation: $$ M_k^{sk} = T_k^{sk} R_k^{sk}.$$ As a result, the transformation can be represented by a vector $\ve{t}_k^{sk}$ for the translation part and a quaternion $\ve{q}_k^{sk}$ for the rotation part. The relationship between the matrices and their succinct representations are as follows. If $\ve{t}_k^{sk} = (t_x, t_y, t_z)$, then
+        \begin{align*}
+            T_{k}^{sk} = \begin{bmatrix}
+            1 & & & t_x \\
+            & 1 & & t_y \\
+            & & 1 & t_z \\
+            & & & 1
+            \end{bmatrix},            
+        \end{align*}
+        and, if $\ve{q}_k^{sk} = q_w + q_x \hat{i} + q_y \hat{j} + q_z \hat{k}$, then
+        \begin{align*}
+        R_{k}^{sk} = \begin{bmatrix}
+        1 - 2q_y^2 - 2q_z^2 & 
+        2q_x q_y - 2q_z q_w & 
+        2 q_x q_z + q_y q_w & 
+        0 \\
+        2 q_x q_y + 2 q_z q_w & 
+        1 - 2q_x^2 - 2q_z^2 & 
+        2 q_y q_z - 2 q_x q_w & 
+        0 \\
+        2 q_x q_z - 2 q_y q_w & 
+        2 q_y q_z + 2 q_x q_w & 
+        1 - 2 q_x^2 - 2 q_y^2 & 
+        0 \\
+        0 & 0 & 0 & 1
+        \end{bmatrix}.
+        \end{align*}
+    </p>
 
     <div class="page-header"></div>
-    <p>Last modified: 2017/05/08</p>
+    <p>Last modified: 2019/03/31</p>
 </div>
 
 </body>
