@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>The Computation of MikuMikuDance Animated Mesh</title>
+    <title>How MikuMikuDance Animation Works</title>
 
     <!-- Bootstrap -->
     <link href="../css/bootstrap.min.css" rel="stylesheet">
@@ -37,20 +37,23 @@
     \newcommand{\tr}{\mathbb{tr}}
     \)
 
-    <div class="page-header"><h1>The Computation of MikuMikuDance Animated Mesh</h1></div>
+    <div class="page-header"><h1>How MikuMikuDance Animation Works</h1></div>
 
     <p>
-        <a href="https://sites.google.com/view/evpvp/">MikuMikuDance</a> (MMD) s a free 3D animation software that is very popular in Japan.
+        <a href="https://sites.google.com/view/evpvp/">MikuMikuDance</a> (MMD) is a free 3D animation software that is very popular in Japan.
         Ever since the software was first revealed 11 years ago, it has gained a large and strong user base. It simple user interface allowed
-        amateurs to quickly pick up 3D animation. It inspired modelers to create thousands of models of anime-style characters, animators
+        amateurs to quickly pick up 3D animation. It has inspired modelers to create thousands of models of anime-style characters, animators
         to generate hundreds of elaborate dance motions, and video creators to upload hundreds of thousands of 3D animations made using the
         software to the Internet.
     </p>
 
     <p>
         While MMD has made great impact to the Japanese 3D animation community, its closed-source nature seems to limit the usefulness
-        of the software itself and its associated data, especially to a programmer. It is hard to develop tools that work with MMD data
-        if we don't know how the software works. This, I think, limits the growth of MMD as a platform for content creation.
+        of the software itself and its associated data, especially to a programmer: it is hard to develop tools that work with MMD data
+        if we don't know how exactly the software works. This is not to say that there's a lack of tools to manipulate the data. 
+        There are MMD-compatible close-sourced danimation authoring tools such as <a href="https://sites.google.com/site/mikumikumoving/">MikuMikuMoving</a>
+        and <a href="https://nanoem.readthedocs.io/ja/latest/">nanoem</a>. There are also open source viewers and libraries such as
+        <a href="https://github.com/newpolaris/Mikudayo">Mikudayo</a>, <a href="https://github.com/benikabocha/saba">saba</a>, 
     </p>
 
     <p>
@@ -61,7 +64,7 @@
 
     <p>
         This article documents how to compute the mesh of an MMD character, specified mainly under the PMX format, under the motion or pose
-        specified in VMD or VPD formats, respectively.  
+        specified in VMD or VPD formats, respectively.
     </p>
     
 
