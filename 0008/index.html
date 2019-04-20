@@ -31,523 +31,521 @@
 </head>
 <body>
 <div class="container">
-    \(
-    \newcommand{\ve}[1]{\mathbf{#1}}
-    \newcommand{\diag}{\mathrm{diag}}
-    \newcommand{\Real}{\mathbb{R}}
-    \newcommand{\tr}{\mathbb{tr}}
-    \)
-
-    <div class="page-header"><h1>How MikuMikuDance Animation Works #1: Skinning</h1></div>
-
-    <p>
-        <a href="https://sites.google.com/view/evpvp/">MikuMikuDance</a> (MMD) is a free 3D animation software that is very popular in Japan. Ever since the software was first revealed 11 years ago, it has gained a large and strong user base. It simple user interface allowed amateurs to quickly pick up 3D animation. It has inspired modelers to create thousands of models of anime-style characters, animators to generate hundreds of elaborate dance motions, and video creators to upload hundreds of thousands of 3D animations made using the software to the Internet.
-    </p>
-
-    <p>
-        While MMD has made great impact to the Japanese 3D animation community, its closed-source nature seems to limit the usefulness
-        of the software itself and its associated data. This is not to say that there's a lack of tools to manipulate the data. There are MMD-compatible close-sourced danimation authoring tools such as <a href="https://sites.google.com/site/mikumikumoving/">MikuMikuMoving</a> and <a href="https://nanoem.readthedocs.io/ja/latest/">nanoem</a>. There are also open source viewers and libraries such as <a href="https://github.com/DTXMania/MikuMikuFlex">MikuMikuFlex</a>, <a href="https://github.com/newpolaris/Mikudayo">Mikudayo</a>, <a href="https://github.com/benikabocha/saba">saba</a>, and <a href="https://github.com/takahirox/mmd-viewer-js">mmd-viewer-js</a>. Data exporters to other platforms and formats such as <a href="https://mmd-for-unity-proj.github.io/mmd-for-unity/">Unity</a>, <a href="http://stereoarts.jp/">FBX</a>, and <a href="https://github.com/sugiany/blender_mmd_tools">Blender</a> exist, and a variety of other tools are listed at the <a href="https://www6.atwiki.jp/vpvpwiki">VPVP Wiki</a>. What I feel is lacking, however, is conceptual understanding the software. 
-        As a programmer, it is hard to develop novel tools that work with MMD data if we don't understand how the software works. This article aims to address
-        this problem.
-    </p>
-
-    <p>
-        I have been struggling for a long time to develop tools to use MMD data. Recently, I felt that I have succeeded in producing animatated mesh that are close to the original software output. As a result, I would like to share the knowledge that I have gained so that other people might be able to do the same. In this series of articles, I describe how to compute the shape of an animated MMD model. This is the process that couples character models, stored in PMD/PMX files, to motions stored, in VMD files, to produce a dancing character. Clearly, this process is the core of MMD's functionality. Unfortunately, though, I have never seen it clearly documented anywhere.
-    </p>
-
-    <p>
-        This article is the first in a series of 3 articles. Here, we focus on morphing and skinning, which is the process that transforms the model mesh according to a given pose. The next article will be about forward and inverse kinematics, and the last article will be about physical simulation.
-    </p>
-
-    <p>
-        <b>Disclaimer.</b> The algorithms and formulas described in this article are by no means the same as or compatible with the ones in the original software. They are also not my original work as I based my implementation on MikuMikuFlex, an MMD library for the .Net Framework, and <a href="https://gist.github.com/nagadomi/aa39745ae6716b50c2a60288b093d14b">nagadomi's code</a>.
-    </p>
     
-    <h2>Terminology</h2>
+    <div class="page-header"><h1>How MikuMikuDance Animation Works #1: Morphing and Skinning</h1></div>
 
-    <p>
-        Before we can start talking about how to MikuMikuDance animation works, we need to establish some common terms that will be used throughout the article.
-    </p>
+<p>
+    <a href="https://sites.google.com/view/evpvp/">MikuMikuDance</a> (MMD) is a free 3D animation software that is very popular in Japan. Ever since the software was first revealed 11 years ago, it has gained a large and strong user base. It simple user interface allowed amateurs to quickly pick up 3D animation. It has inspired modelers to create thousands of models of anime-style characters, animators to generate hundreds of elaborate dance motions, and video creators to upload hundreds of thousands of 3D animations made using the software to the Internet.
+</p>
 
-    <p>
-        A <b>model</b> is a collection of data that describes a shape that can be animated. In MMD, a model is stored in a file with <tt>.pmd</tt> or <tt>.pmx</tt> extension. (We refer to such a file as the PMD file or the PMX file, based on the extension.) A model is typically a humanoid character, but it can also be a scene prop or the stage itself. This article, however, focuses on animating humanoid characters.
-    </p>
+<p>
+    While MMD has made great impact to the Japanese 3D animation community, its closed-source nature seems to limit the usefulness
+    of the software itself and its associated data. This is not to say that there's a lack of tools to manipulate the data. There are MMD-compatible close-sourced danimation authoring tools such as <a href="https://sites.google.com/site/mikumikumoving/">MikuMikuMoving</a> and <a href="https://nanoem.readthedocs.io/ja/latest/">nanoem</a>. There are also open source viewers and libraries such as <a href="https://github.com/DTXMania/MikuMikuFlex">MikuMikuFlex</a>, <a href="https://github.com/newpolaris/Mikudayo">Mikudayo</a>, <a href="https://github.com/benikabocha/saba">saba</a>, and <a href="https://github.com/takahirox/mmd-viewer-js">mmd-viewer-js</a>. Data exporters to other platforms and formats such as <a href="https://mmd-for-unity-proj.github.io/mmd-for-unity/">Unity</a>, <a href="http://stereoarts.jp/">FBX</a>, and <a href="https://github.com/sugiany/blender_mmd_tools">Blender</a> exist, and a variety of other tools are listed at the <a href="https://www6.atwiki.jp/vpvpwiki">VPVP Wiki</a>. What I feel is lacking, however, is conceptual understanding the software. 
+    As a programmer, it is hard to develop novel tools that work with MMD data if we don't understand how the software works. This article aims to address
+    this problem.
+</p>
 
-    <p>
-        A <b>pose</b> is a configuration of how different parts of a model are positioned relative to one another. A pose of an MMD model is specified by a collection of numbers which we will describe in details in later articles. A pose can be saved in a file with extension <tt>.vpd</tt> (VPD file).
-    </p>
+<p>
+    I have been struggling for a long time to develop tools to use MMD data. Recently, I felt that I have succeeded in producing animatated mesh that are close to the original software output. As a result, I would like to share the knowledge that I have gained so that other people might be able to do the same. In this series of articles, I describe how to compute the shape of an animated MMD model. This is the process that couples character models, stored in PMD/PMX files, to motions stored, in VMD files, to produce a dancing character. Clearly, this process is the core of MMD's functionality. Unfortunately, though, I have never seen it clearly documented anywhere.
+</p>
 
-    <p>
-        The pose of a model when you first load it from a file is called the <b>binding pose</b>. This is the pose that the model is in when an MMD user does not specify anything. For a humanoid character, this is the pose of the character standing straight with the arms extended to the side but angled downward.        
-    </p>
+<p>
+    This article is the first in a series of 3 articles. Here, we focus on morphing and skinning, which is the process that transforms the model mesh according to a given pose. The next article will be about forward and inverse kinematics, and the last article will be about physical simulation.
+</p>
 
-    <p>
-        A <b>motion</b> is a continuous sequence of poses through time. Typically, a motion is stored in a file with <tt>.vmd</tt> extension (VMD file). However, the data stored this way is not complete. A typical VMD motion only specifies where the ankles are but not how the leg and knee joints bend. Moreover, movement
-        of parts such as hair and cloth are controlled by physical simulation, and MMD do not save such movement in VMD files. One of the aims of this article is to describe how to complete the missing data in VMD files so that we can have watch a fully animated model.
-    </p>
+<p>
+    <b>Disclaimer.</b> The algorithms and formulas described in this article are by no means the same as or compatible with the ones in the original software. They are also not my original work as I based my implementation on MikuMikuFlex, an MMD library for the .Net Framework, and <a href="https://gist.github.com/nagadomi/aa39745ae6716b50c2a60288b093d14b">nagadomi's code</a>.
+</p>
 
-    <h2>Posing a Model</h2>
+<h2>Terminology</h2>
 
-    <p>
-        Let us now dig deeper on how an MMD model and its pose are specified. As typical of models for real-time computer graphics, an MMD model is a <a href="https://en.wikipedia.org/wiki/Triangle_mesh">triangle mesh</a>. It consists of a set of 3D points, called <b>vertices</b>, and triangles formed by connecting combinations of 3 of these points. A vertex has many attributes, including its <i>3D position</i> and <i>normal vector</i> (aka "normal"). The data in a PMD/PMX file specify the positions and normals for when the model is in the binding pose. When a model is animated, positions and normals change while other attributes remain the same. The main aim of this article is to describe how to compute the changing positions and normals.
-    </p>
+<p>
+    Before we can start talking about how to MikuMikuDance animation works, we need to establish some common terms that will be used throughout the article.
+</p>
 
-    <p>
-        To ease later algorithmic discussion, we now define some mathmatical notations. Suppose that we are dealing with an arbitrary vertex in the mesh. Let:
-    </p>
+<p>
+    A <b>model</b> is a collection of data that describes a shape that can be animated. In MMD, a model is stored in a file with <tt>.pmd</tt> or <tt>.pmx</tt> extension. (We refer to such a file as the PMD file or the PMX file, based on the extension.) A model is typically a humanoid character, but it can also be a scene prop or the stage itself. This article, however, focuses on animating humanoid characters.
+</p>
 
-    <ul>
-        <li>$\ve{p}^{bd}$ denote the 3D position of the vertex in the binding pose, and</li>
-        <li>$\ve{n}^{bd}$ denote the normal vector of the vertex in the binding pose.</li>
-    </ul>
+<p>
+    A <b>pose</b> is a configuration of how different parts of a model are positioned relative to one another. A pose of an MMD model is specified by a collection of numbers which we will describe in details in later articles. A pose can be saved in a file with extension <tt>.vpd</tt> (VPD file).
+</p>
 
-    <p>
-        For brevity, we will refer to the vertex position and normal in the binding pose as "binding position" and "binding normal," respectively.
-    </p>
+<p>
+    The pose of a model when you first load it from a file is called the <b>binding pose</b>. This is the pose that the model is in when an MMD user does not specify anything. For a humanoid character, this is the pose of the character standing straight with the arms extended to the side but angled downward.        
+</p>
 
-    <p>
-        In MMD, vertices can change through two mechanisms: <b>morphing</b> and <b>skinning</b>.
-    </p>
+<p>
+    A <b>motion</b> is a continuous sequence of poses through time. Typically, a motion is stored in a file with <tt>.vmd</tt> extension (VMD file). However, the data stored this way is not complete. A typical VMD motion only specifies where the ankles are but not how the leg and knee joints bend. Moreover, movement
+    of parts such as hair and cloth are controlled by physical simulation, and MMD do not save such movement in VMD files. One of the aims of this article is to describe how to complete the missing data in VMD files so that we can have watch a fully animated model.
+</p>
 
-    <h2>Morphing</h2>
+<h2>Posing a Model</h2>
 
-    <p>
-        An MMD model comes with a set of <i>morphs</i>. A <b>morph</b> is a predefined change some parts of a model. Each morph has an associated number that varies from $0$ to $1$ called its <b>weight</b>. When the weight is $0$, the morph is completely inactive, and its change is not imposed on the model. When the weight is $1$, the morph is fully active, and its change is in full effect. By default, the weight is $0$.
-    </p>
+<p>
+    Let us now dig deeper on how an MMD model and its pose are specified. As typical of models for real-time computer graphics, an MMD model is a <a href="https://en.wikipedia.org/wiki/Triangle_mesh">triangle mesh</a>. It consists of a set of 3D points, called <b>vertices</b>, and triangles formed by connecting combinations of 3 of these points. A vertex has many attributes, including its <i>3D position</i> and <i>normal vector</i> (aka "normal"). The data in a PMD/PMX file specify the positions and normals for when the model is in the binding pose. When a model is animated, positions and normals change while other attributes remain the same. The main aim of this article is to describe how to compute the changing positions and normals.
+</p>
 
-    <p>
-        The PMD file format supports one morph type, but the PMX file format supports five. This article only discusses the morph type supported by both: the <b>vertex morphs.</b> As the name indicates, the vertex morph modifies vertex positions. Vertex morphs are mainly used to implement facial expressions. A typical MMD character model would contain vertex morphs that make the character wink and open its mouth as if to pronounce the five Japanese vowels.
-    </p>
+<p>
+    To ease later algorithmic discussion, we now define some mathmatical notations. Suppose that we are dealing with an arbitrary vertex in the mesh. Let:
+</p>
 
-    <p>
-        Mathematically, let us say that a model has $n_{vm}$ vertex morphs. The $j$th morph specifies, for each vertex, the displacement vector $\ve{d}_j$ that is added to the binding position if the morph is in full effect. A pose must specify a weight $\omega_j$ for each morph. With these data in place, the position of the vertex after morphing, denoted by $\ve{p}^{vm}$, is given by:
-        $$ \ve{p}^{vm} = \ve{p}^{bd} + \sum_{0 \leq j < n_{vm}} \omega_j \ve{d}_j.$$ Note that normal vectors are not changed by morphing.
-    </p>
+<ul>
+    <li>$\mathrm{p}^{bd}$ denote the 3D position of the vertex in the binding pose, and</li>
+    <li>$\mathrm{n}^{bd}$ denote the normal vector of the vertex in the binding pose.</li>
+</ul>
 
-    <p>
-        In practice, the displacement vectors are zero for most vertices. So, MMD only stores non-zero vectors in the PMD/PMX files. Moreover, if a morph's weight is not specified in a VPD or VMD file, its weight is zero by default.
-    </p>
+<p>
+    For brevity, we will refer to the vertex position and normal in the binding pose as "binding position" and "binding normal," respectively.
+</p>
 
-    <h2>Skinning</h2>
+<p>
+    In MMD, vertices can change through two mechanisms: <b>morphing</b> and <b>skinning</b>.
+</p>
 
-    <p>        
-        MMD is a <a href="https://en.wikipedia.org/wiki/Skeletal_animation">skeletal animation</a> system. In addition to the aforementioned triangle mesh, a MMD model has a <b>skeleton</b>: a stick figure that abstracts the positions of mesh parts relative to one another. A skeleton contains a number of points, called <b>bones</b>, each of which can influence a particular subset of vertices. <b>Skinning</b> is the process of incorporating the influence of bones into vertex positions and normals. It is carried out <i>after</i> morphing.
-    </p>
-    
-    <p>
-        To skin a mesh, MMD performs a sequence of complex calculations to compute a linear transformation (i.e., a $4 \times 4$ matrix) associated with each bone. (Don't worry. We will discuss the complex calculations in details later.) Let us call these transformations the <b>skinning transformations</b> and denote the skinning tranformation of the $k$th bone with $M_k$.
-    </p>
+<h2>Morphing</h2>
 
-    <p>
-        In MMD, a skinning transformation is a rotation followed by a translation: $$ M_k = T_k R_k.$$ As a result, the transformation can be represented by a vector $\ve{t}_k$ for the translation part and a quaternion $\ve{q}_k$ for the rotation part. The relationship between the matrices and their succinct representations are as follows. If $\ve{t}_k = (t_x, t_y, t_z)$, then
+<p>
+    An MMD model comes with a set of <i>morphs</i>. A <b>morph</b> is a predefined change some parts of a model. Each morph has an associated number that varies from $0$ to $1$ called its <b>weight</b>. When the weight is $0$, the morph is completely inactive, and its change is not imposed on the model. When the weight is $1$, the morph is fully active, and its change is in full effect. By default, the weight is $0$.
+</p>
+
+<p>
+    The PMD file format supports one morph type, but the PMX file format supports five. This article only discusses the morph type supported by both: the <b>vertex morphs.</b> As the name indicates, the vertex morph modifies vertex positions. Vertex morphs are mainly used to implement facial expressions. A typical MMD character model would contain vertex morphs that make the character wink and open its mouth as if to pronounce the five Japanese vowels.
+</p>
+
+<p>
+    Mathematically, let us say that a model has $n_{vm}$ vertex morphs. The $j$th morph specifies, for each vertex, the displacement vector $\mathrm{d}_j$ that is added to the binding position if the morph is in full effect. A pose must specify a weight $\omega_j$ for each morph. With these data in place, the position of the vertex after morphing, denoted by $\mathrm{p}^{vm}$, is given by:
+    $$ \mathrm{p}^{vm} = \mathrm{p}^{bd} + \sum_{0 \leq j < n_{vm}} \omega_j \mathrm{d}_j.$$ Note that normal vectors are not changed by morphing.
+</p>
+
+<p>
+    In practice, the displacement vectors are zero for most vertices. So, MMD only stores non-zero vectors in the PMD/PMX files. Moreover, if a morph's weight is not specified in a VPD or VMD file, its weight is zero by default.
+</p>
+
+<h2>Skinning</h2>
+
+<p>        
+    MMD is a <a href="https://en.wikipedia.org/wiki/Skeletal_animation">skeletal animation</a> system. In addition to the aforementioned triangle mesh, a MMD model has a <b>skeleton</b>: a stick figure that abstracts the positions of mesh parts relative to one another. A skeleton contains a number of points, called <b>bones</b>, each of which can influence a particular subset of vertices. <b>Skinning</b> is the process of incorporating the influence of bones into vertex positions and normals. It is carried out <i>after</i> morphing.
+</p>
+
+<p>
+    To skin a mesh, MMD performs a sequence of complex calculations to compute a linear transformation (i.e., a $4 \times 4$ matrix) associated with each bone. (Don't worry. We will discuss the complex calculations in details later.) Let us call these transformations the <b>skinning transformations</b> and denote the skinning tranformation of the $k$th bone with $M_k$.
+</p>
+
+<p>
+    In MMD, a skinning transformation is a rotation followed by a translation: $$ M_k = T_k R_k.$$ As a result, the transformation can be represented by a vector $\mathrm{t}_k$ for the translation part and a quaternion $\mathrm{q}_k$ for the rotation part. The relationship between the matrices and their succinct representations are as follows. If $\mathrm{t}_k = (t_x, t_y, t_z)$, then
+    \begin{align*}
+        T_{k} = \begin{bmatrix}
+        1 & & & t_x \\
+        & 1 & & t_y \\
+        & & 1 & t_z \\
+        & & & 1
+        \end{bmatrix},            
+    \end{align*}
+    and, if $\mathrm{q}_k = q_w + q_x \mathrm{i} + q_y \mathrm{j} + q_z \mathrm{k}$, then
+    \begin{align}
+    R_{k} = \begin{bmatrix}
+    1 - 2q_y^2 - 2q_z^2 & 
+    2q_x q_y - 2q_z q_w & 
+    2 q_x q_z + q_y q_w & 
+    0 \\
+    2 q_x q_y + 2 q_z q_w & 
+    1 - 2q_x^2 - 2q_z^2 & 
+    2 q_y q_z - 2 q_x q_w & 
+    0 \\
+    2 q_x q_z - 2 q_y q_w & 
+    2 q_y q_z + 2 q_x q_w & 
+    1 - 2 q_x^2 - 2 q_y^2 & 
+    0 \\
+    0 & 0 & 0 & 1
+    \end{bmatrix}. \label{quaternion-to-matrix}
+    \end{align}
+    The second equation is just the standard quaternion-to-matrix conversion. You can find a code snippet that does this <a href="http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm">here</a>.
+</p>
+
+<p>
+    Each vertex in the model in under influence of at most 4 bones. Say, a vertex in influenced by Bone $k_0$, $k_1$, $k_2$, and $k_3$. The degree to which each bone influences the vertex is given by the <b>skinning weights</b> $w_0$, $w_1$, $w_2$, and $w_3$. Here, $w_0$ tells how much Bone $k_0$ influences the vertex, and the same goes for $w_1$, $w_2$, and $w_3$. The bone indices $k_0$, $\dotsc$, $k_3$ and the weights $w_0$, $\dotsc$, $w_3$ are specified in the model file for each vertex.
+</p>
+
+<p>
+    Vertices in an MMD model can be skinned by three different algorithms.
+</p>
+
+<ul>
+    <li><i>Linear blend skinning:</i> the standard skinning algorithm in computer graphics.</li>
+    <li><i>SDEF:</i> an proprietary skinning algorithm.</li>
+    <li><i>Dual quaternion skinning:</i> a more advanced skinning algorithm invented by Kavan el al. in 2007 [<a href="https://www.cs.utah.edu/~ladislav/kavan07skinning/kavan07skinning.pdf">*</a>].
+</ul>
+
+<p>The PMD file format only supports linear blend skinning. SDEF is available in PMX file format version 2.0 (and possibly earlier versions), and dual quaternion skinning was introduced in PMX version 2.1. The PMX file specifies which skinning algorithm is used for every vertex. (There is no such specification in the PMD file because every vertex uses linear blend skinning.) MMD itself only support the first two algorithms while other programs such as MikuMikuMoving and <a href="http://kkhk22.seesaa.net/category/14045227-1.html">PmxEditor</a> support all three.</p>
+
+<p>Note also that the MMD community refers to the above algorithm with its own acronyms. Linear blend skinning's acronym is "BDEF," and dual quaternion skinning acronym is "QDEF."</p>
+
+<p>We will now discuss the algorithms, one by one.</p>
+
+<h2>Linear Blend Skinning (BDEF)</h2>
+
+<p>Linear blend skinning is generally the first skining algorithm taught in any computer graphics course. Because of this, we will only discuss it briefly here. These slides from <a href="https://web.stanford.edu/class/cs248/pdf/class_13_skinning.pdf">Stanford University</a> are a good refresher.</p>
+
+<p>
+    The algorithm combines the skinning transformations of the four influencing bones into one final skinning matrix as follows:
+    \begin{align*}
+        M 
+        = \sum_{j=0}^3 w_j M_{k_j}
+        = w_0 M_{k_0}
+        + w_1 M_{k_1}
+        + w_2 M_{k_2}
+        + w_3 M_{k_3}.
+    \end{align*}
+</p>
+
+<p>
+    The final position and normal vector are then given by:
+    \begin{align*}
+        \mathrm{p}^{fin} &= M \mathrm{p}^{vm} \\
+        \mathrm{n}^{fin} &= 
+        \mathrm{normalize}( M^{-T} \mathrm{n}^{bd} ).
+    \end{align*}
+    Here, $M^{-T}$ denotes the <i>inverse transpose</i> of $M$, and the $\mathrm{normalize}(\cdot)$ function does what it name states to a vector. Note that we need to renomalize because $M$ may not preserve vector lengths. 
+</p>
+
+<p>
+    In PMX file format specification, linear blend skinning is referred to as "BDEF." MMD supports three variants: BDEF1, BDEF2, and BDEF4. The number in the name of each variant is simply the number of bones that influence the vertex. There is no change to the underlying calculation. In other words, we can think of BDEF1 as the linear blend skinning algorithm applied to the case where $w_1 = w_2 = w_3 = 0$. Similarly, $w_2 = w_3 = 0$ for BDEF2, and all weights may be non-zero for BDEF4.
+</p>
+
+<h2>SDEF</h2>
+
+<p>
+    SDEF is a proprietary skinning algorithm attributed to Sasaki Yuhri (佐々木優理) [<a href="https://www.pixiv.net/member_illust.php?mode=medium&illust_id=60755964">*</a>]. The name is an acronym for short for "spherical deform" (スフィリカルデフォーム) [<a href="http://mattaku.jp/html/miko_tips_step1.html">*</a>]. It was designed to solve a common problem with linear blend skinning: the skinned mesh loses volume around folding joints such as knees and elbows.
+</p>
+
+<p>
+    As far as I know, the complete specification of the algorithm is not publicly available. Sasaki implemented it in a 3D animation software called Mikoto [<a href="https://www.ipa.go.jp/files/000005652.pdf">*</a>]. Currently, <a href="https://twitter.com/mqdl">mqdl</a> seems to be the most knowledgeable person, having extended the algorithm and implemented it in their 3D modeling program, <a href="http://mqdl.jpn.org/">XISMO</a>. Other programmers have tried to reproduce the algorithm and made their code public. MikuMikuFlex's implementation is based on <a href="https://www.pixiv.net/member_illust.php?mode=medium&illust_id=60755964">sam42's code</a>. My description and implementation is based on <a href="https://gist.github.com/nagadomi/aa39745ae6716b50c2a60288b093d14b">nagadomi's code</a>.
+</p>
+
+<h3>Spherical Blend Skinning</h3>
+
+<p>
+    SDEF seems to be based on the spherical blend skinning algorithm by Kavan and Zara [<a href="https://www.cs.utah.edu/~ladislav/kavan05spherical/kavan05spherical.pdf">*</a>]. The main differences between the former and the latter are:
+</p>
+
+<ol>
+    <li>
+        SDEF requires the vertex to be influenced by two bones while spherical blend skinning can handle an arbitrary number of influencing bones in principle. (However, more than two bones is generally impractical.)
+    </li>
+    <li>
+        SDEF requires more extra vertex attributes than spherical blend skinning does.
+    </li>
+</ol>
+
+<p>
+    We can think of SDEF (nagadomi's implementation of SDEF, to be exact) as an extension of spherical blend skinning with two influencing bones. So it is expedient to describe spherical blend skinning first. The main idea of the algorithm is to exploit the fact each of the skinning transformation can be decompose into a translation and a rotation. The rotational parts of the two transformations are then blended together, and the result is then used to transform a part of the vertex.
+</p>
+
+<p>
+    More precisely, we regard the vertex position (after morphing) $\mathrm{p}^{vm}$ as rotating around a <b>center of rotation</b> $\mathrm{C}$, specific to that vertex. For example, a vertex around an elbow would rotate around the elbow bone's position. We then decompose the vertex position into the center and the displacement from the center:
+    \begin{align*}
+        \mathrm{p}^{vm} = \mathrm{C} + (\mathrm{p}^{vm} - \mathrm{C}).
+    \end{align*}
+    The spherical blending algorithm transforms the two parts differently. For the center $\mathrm{C}$, it computes
+    \begin{align*}
+        M \mathrm{C}
+    \end{align*}
+    where $M$ is the matrix for linear blend skinning, restricted to two influencing bones:
+    \begin{align*}
+        M             
+        = w_0 M_{k_0}
+        + w_1 M_{k_1}.
+    \end{align*}
+    For the displacement $\mathrm{p}^{vm} - \mathrm{C}$, it blends together the rotational component of two skinning matrices and uses the resulting rotation to transform the displacement vector. More precisesly, recall that each skinning transformation can be represented by a translation vector and a quaternion. So, say:
+</p>
+
+<ul>
+    <li>$M_{k_0}$ is represented by $\mathrm{t}_{k_0}$ and $\mathrm{q}_{k_0}$.</li>
+    <li>$M_{k_1}$ is represented by $\mathrm{t}_{k_1}$ and $\mathrm{q}_{k_1}$.</li>
+</ul>
+
+<p>
+    We use the bone weights to blend the quaternions together. This can be done either by <a href="https://en.wikipedia.org/wiki/Slerp">spherical linear interpolation</a> (slerp) or by computing the linear combination of the queternions and then normalizing. nagadomi's code choose the latter and compute the blended quaternion $\mathrm{q}$ with the following pseudocode snippet:
+</p>
+
+<table class="table table-striped">
+    <tr>
+        <td>
+            <b>if</b> $\mathrm{q}_{k_0} \cdot \mathrm{q}_{k_1} < 0$ <b>then</b> <br>
+            $\qquad \mathrm{q}_{k_0} := -\mathrm{q}_{k_1}$ <br>
+            <b>endif</b> <br>
+            $\mathrm{q} := (w_0 \mathrm{q}_{k_0} + w_1 \mathrm{q}_{k_1}) / \| w_1 \mathrm{q}_{k_0} + w_1 \mathrm{q}_{k_1} \|$
+        </td>
+    </tr>
+</table>
+
+<p>
+    Then, we convert the blended quaternion $\mathrm{q}$ into a rotation matrix $R$ with Equation \ref{quaternion-to-matrix}. This allows us to rotate the displacement vector as follows:
+    \begin{align*}
+        R (\mathrm{p}^{vm} - \mathrm{C}).
+    \end{align*}
+    The result is then added to the transformed center to get the final vertex position:
+    \begin{align}
+        \mathrm{p}^{fin} &= M \mathrm{C} + R (\mathrm{p}^{vm} - \mathrm{C}). \label{spherical-blend-skinning}
+    \end{align}
+    This completes the description of the spherical blend skinning algorithm.
+</p>
+
+<p>
+    Let us remind ourselves that the algorithm requires an extra vertex attribute $\mathrm{C}$ to be specified for each vertex in the model. In the Kavan-Zara paper, $\mathrm{C}$ is a solution to a least square optimization problem which becomes very complex if there are three influencing bones or more. However, it is very simple when there are only two bones that have a parent-child relationship. In this case, $\mathrm{C}$ is the position of the child bone because it is the point that does not move then the two bones rotate relative to each other.
+</p>
+
+<p>
+    I'd also like to point out that both $\mathrm{p}^{vm}$ and $\mathrm{C}$ are <i>points</i> in 3D. As a result, they should be converted into homogeneous coordinates with the 4th components being $1$ when doing the calculation of Equation \ref{spherical-blend-skinning}. In other words, we may rewrite the equation as:
+    \begin{align*}
+        \mathrm{p}^{fin} &= 
+        M \begin{bmatrix} C_x \\ C_y \\ C_z \\ 1 \end{bmatrix}
+        + R \left( 
+        \begin{bmatrix} p^{vm}_x \\ p^{vm}_y \\ p^{vm}_z \\ 1 \end{bmatrix}
+        - \begin{bmatrix} C_x \\ C_y \\ C_z \\ 1 \end{bmatrix} 
+        \right)
+        = M \begin{bmatrix} C_x \\ C_y \\ C_z \\ 1 \end{bmatrix}
+        + R
+        \begin{bmatrix} p^{vm}_x - C_x \\ p^{vm}_y - C_y \\ p^{vm}_z - C_z \\ 0 \end{bmatrix}.
+    \end{align*}
+    From the above equation, we can readily verify that $\mathrm{p}^{vm} - \mathrm{C}$ is a <i>vector</i> because its 4th component is $0$. It is also apparent that the result value, $\mathrm{p}^{fin}$, is a point.
+</p>
+
+<h3>The SDEF Algorithm</h3>
+
+<p>
+    <b>Disclaimer:</b> The material in this section is <i>my interpretation</i> of the SDEF algorithm based on nagadomi's code. As I have said before, the algorithm is proprietary, and its official description has not been made public.
+</p>
+
+<p>
+    The SDEF algorithm introduce two more vertex parameters:0 $\mathrm{R}_0$ and $\mathrm{R}_1$, both of which are 3D points. According to <a href="https://twitter.com/mqdl/status/893813138599981056">mqdl's tweet</a>, the two parameters are used to "dynamically adjust $\mathrm{C}$.'' However, I have yet to find a more precise definition, and, frankly, I don't understand what the parameters mean.
+</p>
+
+<p>
+    In nagadomi's code, the following sequence of calculation is perform:
+</p>
+
+<ol>
+    <li>
+        $\mathrm{R}_0$ and $\mathrm{R}_1$ are blended together using the bone weights.
         \begin{align*}
-            T_{k} = \begin{bmatrix}
-            1 & & & t_x \\
-            & 1 & & t_y \\
-            & & 1 & t_z \\
-            & & & 1
-            \end{bmatrix},            
+            \tilde{\mathrm{R}} = w_0 \mathrm{R}_0 + w_1 \mathrm{R}_1.
         \end{align*}
-        and, if $\ve{q}_k = q_w + q_x \ve{i} + q_y \ve{j} + q_z \ve{k}$, then
+    </li>
+    <li>
+        Two new centers $\mathrm{C}_0$ and $\mathrm{C}_1$ are compute:
+        \begin{align*}
+            \mathrm{C}_0 &= \mathrm{C} + \frac{\mathrm{R}_0 - \tilde{\mathrm{R}}}{2} \\
+            \mathrm{C}_1 &= \mathrm{C} + \frac{\mathrm{R}_1 - \tilde{\mathrm{R}}}{2} \\
+        \end{align*}
+    </li>
+    <li>
+        Lastly, the final vertex position is computed as follows:
         \begin{align}
-        R_{k} = \begin{bmatrix}
-        1 - 2q_y^2 - 2q_z^2 & 
-        2q_x q_y - 2q_z q_w & 
-        2 q_x q_z + q_y q_w & 
-        0 \\
-        2 q_x q_y + 2 q_z q_w & 
-        1 - 2q_x^2 - 2q_z^2 & 
-        2 q_y q_z - 2 q_x q_w & 
-        0 \\
-        2 q_x q_z - 2 q_y q_w & 
-        2 q_y q_z + 2 q_x q_w & 
-        1 - 2 q_x^2 - 2 q_y^2 & 
-        0 \\
-        0 & 0 & 0 & 1
-        \end{bmatrix}. \label{quaternion-to-matrix}
+            \mathrm{p}^{fin}
+            = w_0 M_{k_0} \mathrm{C}_0 + w_1 M_{k_1} \mathrm{C}_1 + R (\mathrm{p}^{vm} - \mathrm{C}). \label{sdef-nagadomi}
         \end{align}
-        The second equation is just the standard quaternion-to-matrix conversion. You can find a code snippet that does this <a href="http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm">here</a>.
-    </p>
+        Moreover, the final normal vector is given by $\mathrm{n}^{fin} = R \mathrm{n}^{bd}$.
+    </li>
+</ol>
 
-    <p>
-        Each vertex in the model in under influence of at most 4 bones. Say, a vertex in influenced by Bone $k_0$, $k_1$, $k_2$, and $k_3$. The degree to which each bone influences the vertex is given by the <b>skinning weights</b> $w_0$, $w_1$, $w_2$, and $w_3$. Here, $w_0$ tells how much Bone $k_0$ influences the vertex, and the same goes for $w_1$, $w_2$, and $w_3$. The bone indices $k_0$, $\dotsc$, $k_3$ and the weights $w_0$, $\dotsc$, $w_3$ are specified in the model file for each vertex.
-    </p>
+<p>
+    On the surface, Equation \ref{sdef-nagadomi} looks quite different from Equation \ref{spherical-blend-skinning}. However, we can show that they are very similar through further manipulation.
+    \begin{align*}
+        \mathrm{p}^{fin}
+        &= w_0 M_{k_0} \mathrm{C}_0 + w_1 M_{k_1} \mathrm{C}_1 + R (\mathrm{p}^{vm} - \mathrm{C}) \\
+        &= w_0 M_{k_0} \bigg( \mathrm{C} + \frac{\mathrm{R}_0 - \tilde{\mathrm{R}}}{2} \bigg) 
+        + w_1 M_{k_1} \bigg( \mathrm{C} + \frac{\mathrm{R}_1 - \tilde{\mathrm{R}}}{2} \bigg)
+        + R (\mathrm{p}^{vm} - \mathrm{C}) \\
+        &= w_0 M_{k_0} \mathrm{C} + w_1 M_{k_1} \mathrm{C} 
+        + R (\mathrm{p}^{vm} - \mathrm{C})
+        + w_0 M_{k_0} \frac{\mathrm{R}_0 - \tilde{\mathrm{R}}}{2}
+        + w_1 M_{k_1} \frac{\mathrm{R}_1 - \tilde{\mathrm{R}}}{2} \\
+        &= (w_0 M_{k_0} + w_1 M_{k_1} ) \mathrm{C} 
+        + R (\mathrm{p}^{vm} - \mathrm{C})
+        + w_0 M_{k_0} \frac{\mathrm{R}_0 - \tilde{\mathrm{R}}}{2}
+        + w_1 M_{k_1} \frac{\mathrm{R}_1 - \tilde{\mathrm{R}}}{2} \\
+        &= M\mathrm{C} 
+        + R (\mathrm{p}^{vm} - \mathrm{C})
+        + \bigg( w_0 M_{k_0} \frac{\mathrm{R}_0 - \tilde{\mathrm{R}}}{2}
+        + w_1 M_{k_1} \frac{\mathrm{R}_1 - \tilde{\mathrm{R}}}{2} \bigg).
+    \end{align*}
+    That is, it just Equation \ref{spherical-blend-skinning} with an extra term.
+</p>
 
-    <p>
-        Vertices in an MMD model can be skinned by three different algorithms.
-    </p>
+<p>
+    Actually, the extra term can also be simplified further. We note that, when there are only two influencing bones, it is typical that their weights add up to $1$: $w_0 + w_1 = 1$. As a result, we have
+    \begin{align*}
+        & w_0 M_{k_0} \frac{\mathrm{R}_0 - \tilde{\mathrm{R}}}{2}
+        + w_1 M_{k_1} \frac{\mathrm{R}_1 - \tilde{\mathrm{R}}}{2} \\
+        &= w_0 M_{k_0} \frac{\mathrm{R}_0 - w_0 \mathrm{R}_0 - w_1 \mathrm{R}_1}{2}
+        + w_1 M_{k_1} \frac{\mathrm{R}_1 - w_0 \mathrm{R}_0 - w_1 \mathrm{R}_1}{2} \\
+        &= w_0 M_{k_0} \frac{(1-w_0)\mathrm{R}_0 - w_1 \mathrm{R}_1}{2}
+        + w_1 M_{k_1} \frac{(1 - w_1) \mathrm{R}_1 - w_0 \mathrm{R}_0}{2} \\
+        &= w_0 M_{k_0} \frac{w_1\mathrm{R}_0 - w_1 \mathrm{R}_1}{2}
+        + w_1 M_{k_1} \frac{w_0 \mathrm{R}_1 - w_0 \mathrm{R}_0}{2} \\
+        &= \frac{w_0 w_1}{2} M_{k_0} (\mathrm{R}_0 - \mathrm{R}_1)
+        + \frac{w_0 w_1}{2} M_{k_1} (\mathrm{R}_1 - \mathrm{R}_0) \\
+        &= \frac{w_0 w_1}{2}  (M_{k_0} - M_{k_1}) (\mathrm{R}_0 - \mathrm{R}_1).
+    \end{align*}
+    So, Equation \ref{sdef-nagadomi} becomes:
+    \begin{align}
+        \mathrm{p}^{fin}
+        = M\mathrm{C} + R (\mathrm{p}^{vm} - \mathrm{C})
+        + \frac{w_0 w_1}{2}  (M_{k_0} - M_{k_1}) (\mathrm{R}_0 - \mathrm{R}_1).
+        \label{sdef}
+    \end{align}
+</p>
 
-    <ul>
-        <li><i>Linear blend skinning:</i> the standard skinning algorithm in computer graphics.</li>
-        <li><i>SDEF:</i> an proprietary skinning algorithm.</li>
-        <li><i>Dual quaternion skinning:</i> a more advanced skinning algorithm invented by Kavan el al. in 2007 [<a href="https://www.cs.utah.edu/~ladislav/kavan07skinning/kavan07skinning.pdf">*</a>].
-    </ul>
+<p>
+    A property that all skinning algorithms should have is that, <i>when the model is in resting pose, the algorithm should not change the vertex position.</i> More precisely, if $M_{k_0} = M_{k_1} = I$, then $\mathrm{p}^{fin} = \mathrm{p}^{vm}$. Equation \ref{sdef} makes it apparent that this property holds for the nagadomi's version of the SDEF algorithm. This is because, when $M_{k_0} = M_{k_1} = I$, the extra term vanishes, and $M = R = I$. The RHS thus reduces to $\mathrm{C} + (\mathrm{p}^{vm} - \mathrm{C}) = \mathrm{p}^{vm}.$ I note that the property does not hold for the sam42's version, so I'm less confident that it is a correct interpretation.
+</p>
 
-    <p>The PMD file format only supports linear blend skinning. SDEF is available in PMX file format version 2.0 (and possibly earlier versions), and dual quaternion skinning was introduced in PMX version 2.1. The PMX file specifies which skinning algorithm is used for every vertex. (There is no such specification in the PMD file because every vertex uses linear blend skinning.) MMD itself only support the first two algorithms while other programs such as MikuMikuMoving and <a href="http://kkhk22.seesaa.net/category/14045227-1.html">PmxEditor</a> support all three.</p>
+<p>
+    Equation \ref{sdef} also makes me more puzzled about the meaning of $\mathrm{R}_0$ and $\mathrm{R}_1$ because, after all, it seems that we don't need them both. The whole algorithm can be specified with just $\mathrm{R}_0 - \mathrm{R}_1$.
+</p>
 
-    <p>Note also that the MMD community refers to the above algorithm with its own acronyms. Linear blend skinning's acronym is "BDEF," and dual quaternion skinning acronym is "QDEF."</p>
+<p>
+    Lastly, I'd like to mention that teh SDEF algorithm does not compute $\mathrm{C}$ in the same way that spherical blend skinning does. If it were so, then $\mathrm{C}$ would be unchanged for vertices influenced by the same pair of bones. However, I inspected some knee vertices of <a href="https://dic.nicovideo.jp/a/tda%E5%BC%8Fappend%E3%83%9F%E3%82%AF">Tda-style Append Miku</a> and found that the $\mathrm{C}$ value changes ever so slightly from vertex to vertex.
+</p>
 
-    <p>We will now discuss the algorithms, one by one.</p>
+<h2>Dual Quaternion Skinning (QDEF)</h2>
 
-    <h2>Linear Blend Skinning (BDEF)</h2>
+<p>
+    Dual quaternion skinning was introduced by Kavan et al. in 2007. Being quite recent, it is not typically taught in computer graphics courses. A good material to learn about dual quaternion skinning is the <a href="https://www.cs.utah.edu/~ladislav/kavan07skinning/kavan07skinning.pdf">2007 paper itself</a>.
+</p>
 
-    <p>Linear blend skinning is generally the first skining algorithm taught in any computer graphics course. Because of this, we will only discuss it briefly here. These slides from <a href="https://web.stanford.edu/class/cs248/pdf/class_13_skinning.pdf">Stanford University</a> are a good refresher.</p>
+<p>
+    The main idea of the paper is to make use of an algebraic structure called the <b>dual quaternions</b> to represent skinning transforms. The dual quaternions combine the quanterions with the <b>dual numbers</b>. While the former is well-known to a CG practioner, the latter is typically not, so we will introduce it here.
+</p>
 
-    <p>
-        The algorithm combines the skinning transformations of the four influencing bones into one final skinning matrix as follows:
-        \begin{align*}
-            M 
-            = \sum_{j=0}^3 w_j M_{k_j}
-            = w_0 M_{k_0}
-            + w_1 M_{k_1}
-            + w_2 M_{k_2}
-            + w_3 M_{k_3}.
-        \end{align*}
-    </p>
+<h3>Dual Numbers</h3>
 
-    <p>
-        The final position and normal vector are then given by:
-        \begin{align*}
-            \ve{p}^{fin} &= M \ve{p}^{vm} \\
-            \ve{n}^{fin} &= 
-            \mathrm{normalize}( M^{-T} \ve{n}^{bd} ).
-        \end{align*}
-        Here, $M^{-T}$ denotes the <i>inverse transpose</i> of $M$, and the $\mathrm{normalize}(\cdot)$ function does what it name states to a vector. Note that we need to renomalize because $M$ may not preserve vector lengths. 
-    </p>
+<p>
+    A dual number $\hat{a}$ is a number of the form $\hat{a} = a_0 + \varepsilon a_{\varepsilon}$, where $a_0$ and $a_\varepsilon$ are real numbers. The symbol $\varepsilon$ denotes a special number (in the same vein as $i$ of the complex numbers), called the <b>dual unit</b>, satisfying the identity $\varepsilon^2 = 0$. $a_0$ is called the <b>real part</b> of $\hat{a}$, and $a_\varepsilon$ is called the <b>dual part</b>. Addition and multiplication of dual numbers are defined in the usual way. The multiplicative inverse exists for any dual number whose real part is not zero:
+    \begin{align*}
+    \frac{1}{a_0 + \varepsilon a_\varepsilon} = \frac{1}{a_0} - \varepsilon \frac{a_\varepsilon}{a_0^2}.
+    \end{align*}
+    Moreover, the square root of a "positive" dual number is given by:
+    \begin{align*}
+    \sqrt{a_0 + \varepsilon a_\varepsilon}
+    = \sqrt{a_0} + \varepsilon \frac{a_\varepsilon}{2 \sqrt{a_0}}.
+    \end{align*}
+</p>
 
-    <p>
-        In PMX file format specification, linear blend skinning is referred to as "BDEF." MMD supports three variants: BDEF1, BDEF2, and BDEF4. The number in the name of each variant is simply the number of bones that influence the vertex. There is no change to the underlying calculation. In other words, we can think of BDEF1 as the linear blend skinning algorithm applied to the case where $w_1 = w_2 = w_3 = 0$. Similarly, $w_2 = w_3 = 0$ for BDEF2, and all weights may be non-zero for BDEF4.
-    </p>
+<h3>Dual Quaternions</h3>
 
-    <h2>SDEF</h2>
+<p>
+    A dual quaternion is just a quaternion whose four components are dual number instead of real numbers:
+    \begin{align*}
+        \hat{\mathrm{q}}
+        &= \hat{q}_w + \hat{q}_x \mathrm{i} + \hat{q}_y \mathrm{j} + \hat{q}_z \mathrm{k} \\
+        &= (q_{0,w} + q_{\varepsilon,w}) + (q_{0,x} + q_{\varepsilon,x}) \mathrm{i} + (q_{0,y} + q_{\varepsilon,y}) \mathrm{j} + (q_{0,z} + q_{\varepsilon,z}) \mathrm{k}.
+    \end{align*}
+    In the system of the dual queternions, $\varepsilon$ commutes with $\mathrm{i}$, $\mathrm{j}$, and $\mathrm{k}$. As a result, we may also write:
+    \begin{align*}
+        \hat{\mathrm{q}}
+        &= (q_{0,w} + q_{\varepsilon,w}) + (q_{0,x} + q_{\varepsilon,x}) \mathrm{i} + (q_{0,y} + q_{\varepsilon,y}) \mathrm{j} + (q_{0,z} + q_{\varepsilon,z}) \mathrm{k} \\
+        &= (q_{0,w} + q_{0,x} \mathrm{i} + q_{0,y} \mathrm{j} + q_{0,z} \mathrm{k}) + \varepsilon (q_{\varepsilon,w} + q_{\varepsilon,x} \mathrm{i} + q_{\varepsilon,y} \mathrm{j} + q_{\varepsilon,z} \mathrm{k}) \\
+        &= \mathrm{q}_0 + \varepsilon \mathrm{q}_\varepsilon.
+    \end{align*}
+    That is, we can also view a dual quaternion as a dual number whose two components are quaternions. Again, addition and multiplication of dual quaternions are defined in the usual way. The <b>quaternion conjugate</b> of a dual quaternion is the same dual quaternion but with its component conjugated:
+    \begin{align*}
+        \hat{\mathrm{q}}^* = \mathrm{q}_0^* + \varepsilon \mathrm{q}_\epsilon^*.
+    \end{align*}
+    When we multiply a dual quaternion with its quaternion conjugate, we get a dual number. The <b>norm</b> of a dual quaternion is given by the square root of this product:
+    \begin{align*}
+        \| \hat{\mathrm{q}} \| 
+        = \sqrt{ \hat{\mathrm{q}} \hat{\mathrm{q}}^* }
+        = \sqrt{ \hat{\mathrm{q}}^* \hat{\mathrm{q}} }
+        = \| \mathrm{q}_0 \| + \varepsilon \frac{\mathrm{q}_0 \cdot \mathrm{q}_\varepsilon}{\| \mathrm{q}_0 \|}.
+    \end{align*}
+    A <b>unit dual quaternion</b> is a dual quaternion with norm $1$. From the above quation, a dual quaternion $\hat{\mathrm{q}}$ is unit if and only if (1) its real part $\mathrm{q}_0$ is a unit quaternion, and (2) $\mathrm{q}_0 \cdot \mathrm{q}_\varepsilon = 0$.
+</p>
 
-    <p>
-        SDEF is a proprietary skinning algorithm attributed to Sasaki Yuhri (佐々木優理) [<a href="https://www.pixiv.net/member_illust.php?mode=medium&illust_id=60755964">*</a>]. The name is an acronym for short for "spherical deform" (スフィリカルデフォーム) [<a href="http://mattaku.jp/html/miko_tips_step1.html">*</a>]. It was designed to solve a common problem with linear blend skinning: the skinned mesh loses volume around folding joints such as knees and elbows.
-    </p>
+<h3>Dual Quaternions and Skinning Transformations</h3>
 
-    <p>
-        As far as I know, the complete specification of the algorithm is not publicly available. Sasaki implemented it in a 3D animation software called Mikoto [<a href="https://www.ipa.go.jp/files/000005652.pdf">*</a>]. Currently, <a href="https://twitter.com/mqdl">mqdl</a> seems to be the most knowledgeable person, having extended the algorithm and implemented it in their 3D modeling program, <a href="http://mqdl.jpn.org/">XISMO</a>. Other programmers have tried to reproduce the algorithm and made their code public. MikuMikuFlex's implementation is based on <a href="https://www.pixiv.net/member_illust.php?mode=medium&illust_id=60755964">sam42's code</a>. My description and implementation is based on <a href="https://gist.github.com/nagadomi/aa39745ae6716b50c2a60288b093d14b">nagadomi's code</a>.
-    </p>
+<p>
+    It turns out that unit dual quaternions can represent skinning transformations.
+</p>
 
-    <h3>Spherical Blend Skinning</h3>
+<p>
+    First, if $\mathrm{q}_0$ is a unit quarternion, then $\mathrm{q} = \mathrm{q} + \varepsilon \times 0$ is also a unit dual quaternion. Hence, unit dual quaternions can represent all rotations because unit quaternions can.
+</p>
 
-    <p>
-        SDEF seems to be based on the spherical blend skinning algorithm by Kavan and Zara [<a href="https://www.cs.utah.edu/~ladislav/kavan05spherical/kavan05spherical.pdf">*</a>]. The main differences between the former and the latter are:
-    </p>
+<p>
+    Second, unit dual quaternions can also represent translations. A translation by vector $\mathrm{t} = (t_x, t_y, t_z)^T$ is equivalent of the unit dual quaternion
+    \begin{align*}
+        1 + \frac{\varepsilon}{2}(t_x \mathrm{i} + t_y \mathrm{j} + t_z \mathrm{k}).
+    \end{align*}
+</p>
 
-    <ol>
-        <li>
-            SDEF requires the vertex to be influenced by two bones while spherical blend skinning can handle an arbitrary number of influencing bones in principle. (However, more than two bones is generally impractical.)
-        </li>
-        <li>
-            SDEF requires more extra vertex attributes than spherical blend skinning does.
-        </li>
-    </ol>
+<p>        
+    As such, any skinning transformation $M = TR$, represented by a translation vector $\mathrm{t}$ and a unit quaternion $\mathrm{q}$, is equivalent to the following unit dual quaternion
+    \begin{align}
+        \bigg [ 1 + \frac{\varepsilon}{2}(t_x \mathrm{i} + t_y \mathrm{j} + t_z \mathrm{k}) \bigg] \mathrm{q}
+        = \mathrm{q} + \frac{\varepsilon}{2}(t_x \mathrm{i} + t_y \mathrm{j} + t_z \mathrm{k}) \mathrm{q}.
+        \label{xform-to-dual-quaternion}
+    \end{align}
+    (While it is not obvious, one may show that the above is a unit dual quaternion.)         
+</p>
 
-    <p>
-        We can think of SDEF (nagadomi's implementation of SDEF, to be exact) as an extension of spherical blend skinning with two influencing bones. So it is expedient to describe spherical blend skinning first. The main idea of the algorithm is to exploit the fact each of the skinning transformation can be decompose into a translation and a rotation. The rotational parts of the two transformations are then blended together, and the result is then used to transform a part of the vertex.
-    </p>
+<p>
+    It also turns out that all unit dual quaternion can be written in the form of Equation \ref{xform-to-dual-quaternion}. As a result, given a unit dual quaternion $\hat{\mathrm{q}} = \mathrm{q}_0 + \varepsilon \mathrm{q}_\varepsilon$, one can recover the translation vector and the quaternion that represent the associated skinning transformation as follows.
+</p>
 
-    <p>
-        More precisely, we regard the vertex position (after morphing) $\ve{p}^{vm}$ as rotating around a <b>center of rotation</b> $\ve{C}$, specific to that vertex. For example, a vertex around an elbow would rotate around the elbow bone's position. We then decompose the vertex position into the center and the displacement from the center:
-        \begin{align*}
-            \ve{p}^{vm} = \ve{C} + (\ve{p}^{vm} - \ve{C}).
-        \end{align*}
-        The spherical blending algorithm transforms the two parts differently. For the center $\ve{C}$, it computes
-        \begin{align*}
-            M \ve{C}
-        \end{align*}
-        where $M$ is the matrix for linear blend skinning, restricted to two influencing bones:
-        \begin{align*}
-            M             
-            = w_0 M_{k_0}
-            + w_1 M_{k_1}.
-        \end{align*}
-        For the displacement $\ve{p}^{vm} - \ve{C}$, it blends together the rotational component of two skinning matrices and uses the resulting rotation to transform the displacement vector. More precisesly, recall that each skinning transformation can be represented by a translation vector and a quaternion. So, say:
-    </p>
+<ol>
+    <li>
+        The quaternion that represents the rotation is just $\mathrm{q}_0$.
+    </li>
+    <li>
+        The translation vector $\mathrm{t}$ is given by the vector part of the quaternion $2\mathrm{q}_\varepsilon \mathrm{q}_0^*$.
+    </li>
+</ol>
 
-    <ul>
-        <li>$M_{k_0}$ is represented by $\ve{t}_{k_0}$ and $\ve{q}_{k_0}$.</li>
-        <li>$M_{k_1}$ is represented by $\ve{t}_{k_1}$ and $\ve{q}_{k_1}$.</li>
-    </ul>
+<p>
+    The above procedure gives us the ability to convert a unit dual quaternion to a transformation matrix.
+</p>
 
-    <p>
-        We use the bone weights to blend the quaternions together. This can be done either by <a href="https://en.wikipedia.org/wiki/Slerp">spherical linear interpolation</a> (slerp) or by computing the linear combination of the queternions and then normalizing. nagadomi's code choose the latter and compute the blended quaternion $\ve{q}$ with the following pseudocode snippet:
-    </p>
+<h3>The Skinning Algorithm</h3>
 
-    <table class="table table-striped">
-        <tr>
-            <td>
-                <b>if</b> $\ve{q}_{k_0} \cdot \ve{q}_{k_1} < 0$ <b>then</b> <br>
-                $\qquad \ve{q}_{k_0} := -\ve{q}_{k_1}$ <br>
-                <b>endif</b> <br>
-                $\ve{q} := (w_0 \ve{q}_{k_0} + w_1 \ve{q}_{k_1}) / \| w_1 \ve{q}_{k_0} + w_1 \ve{q}_{k_1} \|$
-            </td>
-        </tr>
-    </table>
+<p>
+    When skinning a vertex, we are given skinning transformations $M_{k_0}$, $\dotsc$, $M_{k_3}$ and their associated weights $w_0$, $\dotsc$, $w_3$. The goal is to combine multiple skinning transformations to a single transformation $M$, so that we can apply $M$ to $\mathrm{p}^{vm}$ and its inverse transpose $M^{-T}$ to $\mathrm{n}^{bd}$.
+</p>
 
-    <p>
-        Then, we convert the blended quaternion $\ve{q}$ into a rotation matrix $R$ with Equation \ref{quaternion-to-matrix}. This allows us to rotate the displacement vector as follows:
-        \begin{align*}
-            R (\ve{p}^{vm} - \ve{C}).
-        \end{align*}
-        The result is then added to the transformed center to get the final vertex position:
-        \begin{align}
-            \ve{p}^{fin} &= M \ve{C} + R (\ve{p}^{vm} - \ve{C}). \label{spherical-blend-skinning}
-        \end{align}
-        This completes the description of the spherical blend skinning algorithm.
-    </p>
+<p>
+    Dual quaternion skinning first convert the skinning transformations into unit quaternion $\hat{\mathrm{q}}_{k_0}$, $\dotsc$, $\hat{\mathrm{q}}_{k_3}$, using Equation \ref{xform-to-dual-quaternion}. It then blends the unit quaternions into a single one by computing the weighted sum and normalizing:
+    \begin{align*}
+    \hat{\mathrm{q}} = \frac{w_0 \hat{\mathrm{q}}_{k_0} + \dotsb + w_3 \hat{\mathrm{q}}_{k_3} }{\| w_0 \hat{\mathrm{q}}_{k_0} + \dotsb + w_3 \hat{\mathrm{q}}_{k_3} \|}.
+    \end{align*}
+    Note that the denominator in the above equation is a dual number. So the division is equivalent to multiplying the weight sum with the inverse of its norm. After the blended quaternion $\hat{\mathrm{q}}$ is computed, we can convert it to a matrix $M$ by the two step process of the last section.
+</p>
 
-    <p>
-        Let us remind ourselves that the algorithm requires an extra vertex attribute $\ve{C}$ to be specified for each vertex in the model. In the Kavan-Zara paper, $\ve{C}$ is a solution to a least square optimization problem which becomes very complex if there are three influencing bones or more. However, it is very simple when there are only two bones that have a parent-child relationship. In this case, $\ve{C}$ is the position of the child bone because it is the point that does not move then the two bones rotate relative to each other.
-    </p>
+<p>
+    One subtlety when implementing dual quaternion skinning is dealing with the fact that $\hat{\mathrm{q}}$ and $-\hat{\mathrm{q}}$ represent exactly the same transformation. Hence, when computing the sum $w_0 \hat{\mathrm{q}}_{k_0} + \dotsb + w_3 \hat{\mathrm{q}}_{k_3}$, one needs to choose the signs of the dual quaternions to prevent catastrophic cancellation. In case, there are only two influencing bones, I use the following code to blend the quaternions together:
+</p>
 
-    <p>
-        I'd also like to point out that both $\ve{p}^{vm}$ and $\ve{C}$ are <i>points</i> in 3D. As a result, they should be converted into homogeneous coordinates with the 4th components being $1$ when doing the calculation of Equation \ref{spherical-blend-skinning}. In other words, we may rewrite the equation as:
-        \begin{align*}
-            \ve{p}^{fin} &= 
-            M \begin{bmatrix} C_x \\ C_y \\ C_z \\ 1 \end{bmatrix}
-            + R \left( 
-            \begin{bmatrix} p^{vm}_x \\ p^{vm}_y \\ p^{vm}_z \\ 1 \end{bmatrix}
-            - \begin{bmatrix} C_x \\ C_y \\ C_z \\ 1 \end{bmatrix} 
-            \right)
-            = M \begin{bmatrix} C_x \\ C_y \\ C_z \\ 1 \end{bmatrix}
-            + R
-            \begin{bmatrix} p^{vm}_x - C_x \\ p^{vm}_y - C_y \\ p^{vm}_z - C_z \\ 0 \end{bmatrix}.
-        \end{align*}
-        From the above equation, we can readily verify that $\ve{p}^{vm} - \ve{C}$ is a <i>vector</i> because its 4th component is $0$. It is also apparent that the result value, $\ve{p}^{fin}$, is a point.
-    </p>
+<table class="table table-striped">
+    <tr>
+        <td>
+            $\hat{\mathrm{q}} := w_0 \hat{\mathrm{q}}_{k_0}$ <br>
+            <b>for</b> $i := 1$ <b>to</b> $3$ <br>
+            $\qquad$<b>if</b> $\hat{\mathrm{q}} \cdot \hat{\mathrm{q}}_{k_i} < 0$ <b>then</b> <br>
+            $\qquad\qquad \hat{\mathrm{q}}_{k_i} := -\hat{\mathrm{q}}_{k_i}$ <br>
+            $\qquad$<b>endif</b> <br>
+            $\qquad \hat{\mathrm{q}} := \hat{\mathrm{q}} + w_i \hat{\mathrm{q}}_{k_i}$ <br>
+            <b>endfor</b> <br>
+            $\hat{\mathrm{q}} := \hat{\mathrm{q}} / \| \hat{\mathrm{q}} \|$
+        </td>
+    </tr>
+</table>
 
-    <h3>The SDEF Algorithm</h3>
-    
-    <p>
-        <b>Disclaimer:</b> The material in this section is <i>my interpretation</i> of the SDEF algorithm based on nagadomi's code. As I have said before, the algorithm is proprietary, and its official description has not been made public.
-    </p>
+<h2>GLSL Vertex Shader Code</h2>
 
-    <p>
-        The SDEF algorithm introduce two more vertex parameters:0 $\ve{R}_0$ and $\ve{R}_1$, both of which are 3D points. According to <a href="https://twitter.com/mqdl/status/893813138599981056">mqdl's tweet</a>, the two parameters are used to "dynamically adjust $\ve{C}$.'' However, I have yet to find a more precise definition, and, frankly, I don't understand what the parameters mean.
-    </p>
-
-    <p>
-        In nagadomi's code, the following sequence of calculation is perform:
-    </p>
-
-    <ol>
-        <li>
-            $\ve{R}_0$ and $\ve{R}_1$ are blended together using the bone weights.
-            \begin{align*}
-                \tilde{\ve{R}} = w_0 \ve{R}_0 + w_1 \ve{R}_1.
-            \end{align*}
-        </li>
-        <li>
-            Two new centers $\ve{C}_0$ and $\ve{C}_1$ are compute:
-            \begin{align*}
-                \ve{C}_0 &= \ve{C} + \frac{\ve{R}_0 - \tilde{\ve{R}}}{2} \\
-                \ve{C}_1 &= \ve{C} + \frac{\ve{R}_1 - \tilde{\ve{R}}}{2} \\
-            \end{align*}
-        </li>
-        <li>
-            Lastly, the final vertex position is computed as follows:
-            \begin{align}
-                \ve{p}^{fin}
-                = w_0 M_{k_0} \ve{C}_0 + w_1 M_{k_1} \ve{C}_1 + R (\ve{p}^{vm} - \ve{C}). \label{sdef-nagadomi}
-            \end{align}
-            Moreover, the final normal vector is given by $\ve{n}^{fin} = R \ve{n}^{bd}$.
-        </li>
-    </ol>
-
-    <p>
-        On the surface, Equation \ref{sdef-nagadomi} looks quite different from Equation \ref{spherical-blend-skinning}. However, we can show that they are very similar through further manipulation.
-        \begin{align*}
-            \ve{p}^{fin}
-            &= w_0 M_{k_0} \ve{C}_0 + w_1 M_{k_1} \ve{C}_1 + R (\ve{p}^{vm} - \ve{C}) \\
-            &= w_0 M_{k_0} \bigg( \ve{C} + \frac{\ve{R}_0 - \tilde{\ve{R}}}{2} \bigg) 
-            + w_1 M_{k_1} \bigg( \ve{C} + \frac{\ve{R}_1 - \tilde{\ve{R}}}{2} \bigg)
-            + R (\ve{p}^{vm} - \ve{C}) \\
-            &= w_0 M_{k_0} \ve{C} + w_1 M_{k_1} \ve{C} 
-            + R (\ve{p}^{vm} - \ve{C})
-            + w_0 M_{k_0} \frac{\ve{R}_0 - \tilde{\ve{R}}}{2}
-            + w_1 M_{k_1} \frac{\ve{R}_1 - \tilde{\ve{R}}}{2} \\
-            &= (w_0 M_{k_0} + w_1 M_{k_1} ) \ve{C} 
-            + R (\ve{p}^{vm} - \ve{C})
-            + w_0 M_{k_0} \frac{\ve{R}_0 - \tilde{\ve{R}}}{2}
-            + w_1 M_{k_1} \frac{\ve{R}_1 - \tilde{\ve{R}}}{2} \\
-            &= M\ve{C} 
-            + R (\ve{p}^{vm} - \ve{C})
-            + \bigg( w_0 M_{k_0} \frac{\ve{R}_0 - \tilde{\ve{R}}}{2}
-            + w_1 M_{k_1} \frac{\ve{R}_1 - \tilde{\ve{R}}}{2} \bigg).
-        \end{align*}
-        That is, it just Equation \ref{spherical-blend-skinning} with an extra term.
-    </p>
-
-    <p>
-        Actually, the extra term can also be simplified further. We note that, when there are only two influencing bones, it is typical that their weights add up to $1$: $w_0 + w_1 = 1$. As a result, we have
-        \begin{align*}
-            & w_0 M_{k_0} \frac{\ve{R}_0 - \tilde{\ve{R}}}{2}
-            + w_1 M_{k_1} \frac{\ve{R}_1 - \tilde{\ve{R}}}{2} \\
-            &= w_0 M_{k_0} \frac{\ve{R}_0 - w_0 \ve{R}_0 - w_1 \ve{R}_1}{2}
-            + w_1 M_{k_1} \frac{\ve{R}_1 - w_0 \ve{R}_0 - w_1 \ve{R}_1}{2} \\
-            &= w_0 M_{k_0} \frac{(1-w_0)\ve{R}_0 - w_1 \ve{R}_1}{2}
-            + w_1 M_{k_1} \frac{(1 - w_1) \ve{R}_1 - w_0 \ve{R}_0}{2} \\
-            &= w_0 M_{k_0} \frac{w_1\ve{R}_0 - w_1 \ve{R}_1}{2}
-            + w_1 M_{k_1} \frac{w_0 \ve{R}_1 - w_0 \ve{R}_0}{2} \\
-            &= \frac{w_0 w_1}{2} M_{k_0} (\ve{R}_0 - \ve{R}_1)
-            + \frac{w_0 w_1}{2} M_{k_1} (\ve{R}_1 - \ve{R}_0) \\
-            &= \frac{w_0 w_1}{2}  (M_{k_0} - M_{k_1}) (\ve{R}_0 - \ve{R}_1).
-        \end{align*}
-        So, Equation \ref{sdef-nagadomi} becomes:
-        \begin{align}
-            \ve{p}^{fin}
-            = M\ve{C} + R (\ve{p}^{vm} - \ve{C})
-            + \frac{w_0 w_1}{2}  (M_{k_0} - M_{k_1}) (\ve{R}_0 - \ve{R}_1).
-            \label{sdef}
-        \end{align}
-    </p>
-
-    <p>
-        A property that all skinning algorithms should have is that, <i>when the model is in resting pose, the algorithm should not change the vertex position.</i> More precisely, if $M_{k_0} = M_{k_1} = I$, then $\ve{p}^{fin} = \ve{p}^{vm}$. Equation \ref{sdef} makes it apparent that this property holds for the nagadomi's version of the SDEF algorithm. This is because, when $M_{k_0} = M_{k_1} = I$, the extra term vanishes, and $M = R = I$. The RHS thus reduces to $\ve{C} + (\ve{p}^{vm} - \ve{C}) = \ve{p}^{vm}.$ I note that the property does not hold for the sam42's version, so I'm less confident that it is a correct interpretation.
-    </p>
-
-    <p>
-        Equation \ref{sdef} also makes me more puzzled about the meaning of $\ve{R}_0$ and $\ve{R}_1$ because, after all, it seems that we don't need them both. The whole algorithm can be specified with just $\ve{R}_0 - \ve{R}_1$.
-    </p>
-
-    <p>
-        Lastly, I'd like to mention that teh SDEF algorithm does not compute $\ve{C}$ in the same way that spherical blend skinning does. If it were so, then $\ve{C}$ would be unchanged for vertices influenced by the same pair of bones. However, I inspected some knee vertices of <a href="https://dic.nicovideo.jp/a/tda%E5%BC%8Fappend%E3%83%9F%E3%82%AF">Tda-style Append Miku</a> and found that the $\ve{C}$ value changes ever so slightly from vertex to vertex.
-    </p>
-
-    <h2>Dual Quaternion Skinning (QDEF)</h2>
-
-    <p>
-        Dual quaternion skinning was introduced by Kavan et al. in 2007. Being quite recent, it is not typically taught in computer graphics courses. A good material to learn about dual quaternion skinning is the <a href="https://www.cs.utah.edu/~ladislav/kavan07skinning/kavan07skinning.pdf">2007 paper itself</a>.
-    </p>
-
-    <p>
-        The main idea of the paper is to make use of an algebraic structure called the <b>dual quaternions</b> to represent skinning transforms. The dual quaternions combine the quanterions with the <b>dual numbers</b>. While the former is well-known to a CG practioner, the latter is typically not, so we will introduce it here.
-    </p>
-
-    <h3>Dual Numbers</h3>
-
-    <p>
-        A dual number $\hat{a}$ is a number of the form $\hat{a} = a_0 + \varepsilon a_{\varepsilon}$, where $a_0$ and $a_\varepsilon$ are real numbers. The symbol $\varepsilon$ denotes a special number (in the same vein as $i$ of the complex numbers), called the <b>dual unit</b>, satisfying the identity $\varepsilon^2 = 0$. $a_0$ is called the <b>real part</b> of $\hat{a}$, and $a_\varepsilon$ is called the <b>dual part</b>. Addition and multiplication of dual numbers are defined in the usual way. The multiplicative inverse exists for any dual number whose real part is not zero:
-        \begin{align*}
-        \frac{1}{a_0 + \varepsilon a_\varepsilon} = \frac{1}{a_0} - \varepsilon \frac{a_\varepsilon}{a_0^2}.
-        \end{align*}
-        Moreover, the square root of a "positive" dual number is given by:
-        \begin{align*}
-        \sqrt{a_0 + \varepsilon a_\varepsilon}
-        = \sqrt{a_0} + \varepsilon \frac{a_\varepsilon}{2 \sqrt{a_0}}.
-        \end{align*}
-    </p>
-
-    <h3>Dual Quaternions</h3>
-
-    <p>
-        A dual quaternion is just a quaternion whose four components are dual number instead of real numbers:
-        \begin{align*}
-            \hat{\ve{q}}
-            &= \hat{q}_w + \hat{q}_x \ve{i} + \hat{q}_y \ve{j} + \hat{q}_z \ve{k} \\
-            &= (q_{0,w} + q_{\varepsilon,w}) + (q_{0,x} + q_{\varepsilon,x}) \ve{i} + (q_{0,y} + q_{\varepsilon,y}) \ve{j} + (q_{0,z} + q_{\varepsilon,z}) \ve{k}.
-        \end{align*}
-        In the system of the dual queternions, $\varepsilon$ commutes with $\ve{i}$, $\ve{j}$, and $\ve{k}$. As a result, we may also write:
-        \begin{align*}
-            \hat{\ve{q}}
-            &= (q_{0,w} + q_{\varepsilon,w}) + (q_{0,x} + q_{\varepsilon,x}) \ve{i} + (q_{0,y} + q_{\varepsilon,y}) \ve{j} + (q_{0,z} + q_{\varepsilon,z}) \ve{k} \\
-            &= (q_{0,w} + q_{0,x} \ve{i} + q_{0,y} \ve{j} + q_{0,z} \ve{k}) + \varepsilon (q_{\varepsilon,w} + q_{\varepsilon,x} \ve{i} + q_{\varepsilon,y} \ve{j} + q_{\varepsilon,z} \ve{k}) \\
-            &= \ve{q}_0 + \varepsilon \ve{q}_\varepsilon.
-        \end{align*}
-        That is, we can also view a dual quaternion as a dual number whose two components are quaternions. Again, addition and multiplication of dual quaternions are defined in the usual way. The <b>quaternion conjugate</b> of a dual quaternion is the same dual quaternion but with its component conjugated:
-        \begin{align*}
-            \hat{\ve{q}}^* = \ve{q}_0^* + \varepsilon \ve{q}_\epsilon^*.
-        \end{align*}
-        When we multiply a dual quaternion with its quaternion conjugate, we get a dual number. The <b>norm</b> of a dual quaternion is given by the square root of this product:
-        \begin{align*}
-            \| \hat{\ve{q}} \| 
-            = \sqrt{ \hat{\ve{q}} \hat{\ve{q}}^* }
-            = \sqrt{ \hat{\ve{q}}^* \hat{\ve{q}} }
-            = \| \ve{q}_0 \| + \varepsilon \frac{\ve{q}_0 \cdot \ve{q}_\varepsilon}{\| \ve{q}_0 \|}.
-        \end{align*}
-        A <b>unit dual quaternion</b> is a dual quaternion with norm $1$. From the above quation, a dual quaternion $\hat{\ve{q}}$ is unit if and only if (1) its real part $\ve{q}_0$ is a unit quaternion, and (2) $\ve{q}_0 \cdot \ve{q}_\varepsilon = 0$.
-    </p>
-
-    <h3>Dual Quaternions and Skinning Transformations</h3>
-
-    <p>
-        It turns out that unit dual quaternions can represent skinning transformations.
-    </p>
-
-    <p>
-        First, if $\ve{q}_0$ is a unit quarternion, then $\ve{q} = \ve{q} + \varepsilon \times 0$ is also a unit dual quaternion. Hence, unit dual quaternions can represent all rotations because unit quaternions can.
-    </p>
-
-    <p>
-        Second, unit dual quaternions can also represent translations. A translation by vector $\ve{t} = (t_x, t_y, t_z)^T$ is equivalent of the unit dual quaternion
-        \begin{align*}
-            1 + \frac{\varepsilon}{2}(t_x \ve{i} + t_y \ve{j} + t_z \ve{k}).
-        \end{align*}
-    </p>
-
-    <p>        
-        As such, any skinning transformation $M = TR$, represented by a translation vector $\ve{t}$ and a unit quaternion $\ve{q}$, is equivalent to the following unit dual quaternion
-        \begin{align}
-            \bigg [ 1 + \frac{\varepsilon}{2}(t_x \ve{i} + t_y \ve{j} + t_z \ve{k}) \bigg] \ve{q}
-            = \ve{q} + \frac{\varepsilon}{2}(t_x \ve{i} + t_y \ve{j} + t_z \ve{k}) \ve{q}.
-            \label{xform-to-dual-quaternion}
-        \end{align}
-        (While it is not obvious, one may show that the above is a unit dual quaternion.)         
-    </p>
-
-    <p>
-        It also turns out that all unit dual quaternion can be written in the form of Equation \ref{xform-to-dual-quaternion}. As a result, given a unit dual quaternion $\hat{\ve{q}} = \ve{q}_0 + \varepsilon \ve{q}_\varepsilon$, one can recover the translation vector and the quaternion that represent the associated skinning transformation as follows.
-    </p>
-
-    <ol>
-        <li>
-            The quaternion that represents the rotation is just $\ve{q}_0$.
-        </li>
-        <li>
-            The translation vector $\ve{t}$ is given by the vector part of the quaternion $2\ve{q}_\varepsilon \ve{q}_0^*$.
-        </li>
-    </ol>
-
-    <p>
-        The above procedure gives us the ability to convert a unit dual quaternion to a transformation matrix.
-    </p>
-
-    <h3>The Skinning Algorithm</h3>
-
-    <p>
-        When skinning a vertex, we are given skinning transformations $M_{k_0}$, $\dotsc$, $M_{k_3}$ and their associated weights $w_0$, $\dotsc$, $w_3$. The goal is to combine multiple skinning transformations to a single transformation $M$, so that we can apply $M$ to $\ve{p}^{vm}$ and its inverse transpose $M^{-T}$ to $\ve{n}^{bd}$.
-    </p>
-
-    <p>
-        Dual quaternion skinning first convert the skinning transformations into unit quaternion $\hat{\ve{q}}_{k_0}$, $\dotsc$, $\hat{\ve{q}}_{k_3}$, using Equation \ref{xform-to-dual-quaternion}. It then blends the unit quaternions into a single one by computing the weighted sum and normalizing:
-        \begin{align*}
-        \hat{\ve{q}} = \frac{w_0 \hat{\ve{q}}_{k_0} + \dotsb + w_3 \hat{\ve{q}}_{k_3} }{\| w_0 \hat{\ve{q}}_{k_0} + \dotsb + w_3 \hat{\ve{q}}_{k_3} \|}.
-        \end{align*}
-        Note that the denominator in the above equation is a dual number. So the division is equivalent to multiplying the weight sum with the inverse of its norm. After the blended quaternion $\hat{\ve{q}}$ is computed, we can convert it to a matrix $M$ by the two step process of the last section.
-    </p>
-
-    <p>
-        One subtlety when implementing dual quaternion skinning is dealing with the fact that $\hat{\ve{q}}$ and $-\hat{\ve{q}}$ represent exactly the same transformation. Hence, when computing the sum $w_0 \hat{\ve{q}}_{k_0} + \dotsb + w_3 \hat{\ve{q}}_{k_3}$, one needs to choose the signs of the dual quaternions to prevent catastrophic cancellation. In case, there are only two influencing bones, I use the following code to blend the quaternions together:
-    </p>
-
-    <table class="table table-striped">
-        <tr>
-            <td>
-                $\hat{\ve{q}} := w_0 \hat{\ve{q}_{k_0}}$ <br>
-                <b>for</b> $i := 1$ <b>to</b> $3$ <br>
-                $\qquad$<b>if</b> $\hat{\ve{q}} \cdot \hat{\ve{q}}_{k_i} < 0$ <b>then</b> <br>
-                $\qquad\qquad \hat{\ve{q}}_{k_i} := -\hat{\ve{q}}_{k_i}$ <br>
-                $\qquad$<b>endif</b> <br>
-                $\qquad \hat{\ve{q}} := \hat{\ve{q}} + w_i \hat{\ve{q}}_{k_i}$ <br>
-                <b>endfor</b> <br>
-                $\hat{\ve{q}} := \hat{\ve{q}} / \| \hat{\ve{q}} \|$
-            </td>
-        </tr>
-    </table>
-
-    <h2>GLSL Vertex Shader Code</h2>
+<p>
+    Lastly, I provide a vertex shader, written in the <a href="https://en.wikipedia.org/wiki/OpenGL_Shading_Language">OpenGL Shading Language</a> (GLSL), that performs all the morphing and skinning describe in this article. A Github Gist for the code is <a href="https://gist.github.com/dragonmeteor/127bf3cf1e6c896f3b8f097a152cceef">available here</a>.
+</p>
 
     <div class="page-header"></div>
     <p>Last modified: 2019/04/20</p>
